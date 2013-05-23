@@ -11,11 +11,14 @@ in vec3 normal;
 
 out vec3 outputColor;
 
+//Utilizes diffuse Phong shading.
 void main() {
 	outputColor = color;
 
 	if (isSun == 0.0) {
-
+		//The y component of the sunlight vector is used
+		//to adjust ambient lighting to coincide with night
+		//and sunset/sunrise.
 		float tempDirect = pow(abs(sunDirect.y), 0.4);
 		float ambient = 0.536 * pow(sunDirect.y + 1.0, 0.9);
 
@@ -32,6 +35,11 @@ void main() {
 			modulator = brightness + ambient;
 			lightColor = vec3( 1.0, 0.65 + 0.35 * tempDirect, 0.4 + 0.6 * tempDirect );
 		} else {
+			//If inside, an alternative model based on point
+			//lighting is used. The ambient lighting
+			//component is determined similarly to outside
+			//ambient lighting to simulate the effect
+			//of light spilling into the house through the door.
 			float brightness = dot(normal, sunDirect.xyz);
 			if (brightness <= 0.0) brightness = 0.0;
 			else brightness *= 0.25 * pow(sunDirect.y + 1.0, 2.0);
