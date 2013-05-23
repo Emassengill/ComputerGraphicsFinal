@@ -2267,9 +2267,7 @@ void em_Timer(int t) {
 void em_Keyboard(unsigned char key, int x, int y) {
 	//exit on Esc key
     if (key == 033) {
-		//if (root != nullptr) delete root;
-	    exit( EXIT_SUCCESS );
-
+		exit( EXIT_SUCCESS );
 	}
 
 	//restor to beginning on R
@@ -2451,5 +2449,7 @@ int main( int argc, char **argv ) {
 
     glutMainLoop();
 
+	if (root != nullptr) delete root;
+	if (sun != nullptr) delete sun;
     return 0;
 }
