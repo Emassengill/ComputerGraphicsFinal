@@ -45,7 +45,7 @@ vec4 sunVec = vec4(0.0, 1.0, 0.0, 0.0);
 
 //shader pointers
 GLuint currentProg;
-GLuint camera_loc, trans_loc, skew_loc, sun_loc, isSun_loc, isInside_loc;
+GLuint camera_loc, trans_loc, skew_loc, sun_loc, isSun_loc, isInside_loc, occlusion_loc;
 
 //Node and Object definitions
 class Object {
@@ -59,18 +59,25 @@ class Primitive : public Object {
 private:
 	GLuint vao;
 	GLsizei numVertices;
+	GLuint occ;
 protected:
 	virtual void inheritDraw(const mat4& trans, const mat4& skew) override {
 		glUniformMatrix4fv(trans_loc, 1, GL_TRUE, trans);
 		glUniformMatrix4fv(skew_loc, 1, GL_TRUE, skew);
 	
 		glBindVertexArray(vao);
+		glBeginConditionalRender(occ, GL_QUERY_NO_WAIT);
 		glDrawElements(GL_TRIANGLES, numVertices, GL_UNSIGNED_BYTE, BUFFER_OFFSET(0));
+		glEndConditionalRender();
 		glBindVertexArray(0);
 	}
 public:
-	Primitive(const GLuint vaobj, const GLint numVerts) : vao(vaobj), numVertices(numVerts) {}
-	~Primitive() { glDeleteVertexArrays(1, &vao); }
+	Primitive(const GLuint vaobj, const GLsizei numVerts, const GLuint qry)
+		: vao(vaobj), numVertices(numVerts), occ(qry) {}
+	~Primitive() {
+		glDeleteVertexArrays(1, &vao);
+		if (occ != (GLuint)0) glDeleteQueries(1, &occ);
+	}
 };
 class PointLight : public Object {
 private:
@@ -104,10 +111,12 @@ private:
 	mat4 localTrans;
 	mat4 localSkew;
 	mat4 (*animation)(const float);
+	bool recalc;
 public:
 	Node(Object* obj = nullptr, Node* sub = nullptr, Node* next = nullptr,
-		const mat4& trans = ID, const mat4& skew = ID, mat4 (*animFunc)(const float) = nullptr) :
-		object(obj), child(sub), sibling(next), localTrans(trans), localSkew(skew), animation(animFunc) {}
+		const mat4& trans = ID, const mat4& skew = ID, mat4 (*animFunc)(const float) = nullptr)
+		: object(obj), child(sub), sibling(next),
+			localTrans(trans), localSkew(skew), animation(animFunc), recalc(true) {}
 	~Node() {
 		if (child != nullptr) delete child;
 		if (sibling != nullptr) delete sibling;
@@ -118,12 +127,25 @@ public:
 		localTrans = trans * localTrans;
 		localSkew = skew * localSkew;
 	}
-	void draw(const mat4& trans = ID, const mat4& skew = ID) {
-		const mat4 drawTrans = trans * localTrans;
-		const mat4 drawSkew = skew * localSkew;
-		if (object != nullptr) object->draw(drawTrans, drawSkew);
-		if (child != nullptr) child->draw(drawTrans, drawSkew);
-		if (sibling != nullptr) sibling->draw(trans, skew);
+	void draw(const mat4& trans = ID, const mat4& skew = ID, const bool noRecalc = false) {
+		if (object != nullptr || child != nullptr) {
+			if (animation != nullptr || noRecalc) {
+				const mat4 drawTrans = trans * localTrans;
+				const mat4 drawSkew = skew * localSkew;
+				if (object != nullptr) object->draw(drawTrans, drawSkew);
+				if (child != nullptr) child->draw(drawTrans, drawSkew, true);
+			} else if (recalc) {
+				localTrans = trans * localTrans;
+				localSkew = skew * localSkew;
+				recalc = false;
+				if (object != nullptr) object->draw(localTrans, localSkew);
+				if (child != nullptr) child->draw(localTrans, localSkew);
+			} else {
+				if (object != nullptr) object->draw(localTrans, localSkew);
+				if (child != nullptr) child->draw(localTrans, localSkew);
+			}
+		}
+		if (sibling != nullptr) sibling->draw(trans, skew, noRecalc);
 	}
 	void animate(const float number = 0.0, const bool parentCall = true) {
 		if (animation != nullptr) {
@@ -132,7 +154,7 @@ public:
 			localSkew = animTrans * localSkew;
 		}
 		if (child != nullptr) child->animate(number);
-		if (parentCall && sibling != nullptr) sibling->animate(number);	
+		if (sibling != nullptr && parentCall) sibling->animate(number);	
 	}
 	void addChild(Node* node) {
 		if (child == nullptr) child = node;
@@ -168,6 +190,7 @@ Object *light, *sunState, *insideState, *outsideState;
 
 //tree
 Node* root = nullptr;
+Node* carScene = nullptr;
 Node* sun = nullptr;
 
 //camera matrices
@@ -1706,7 +1729,7 @@ Node* genDrivingScene(const float thinness = 1.0, const mat4& initTrans = ID, co
 }
 Node* genLeaf(const float prob = 0.5, const mat4& initTrans = ID, const mat4& initSkew = ID) {
 	const int colorInd = bernoulli() < prob ? 1 : 0;
-	return new Node(leaf[colorInd], nullptr, nullptr, initTrans * rZ(M_PI/12.0), initSkew);
+	return new Node(leaf[colorInd], nullptr, nullptr, initTrans * rZ(M_PI/12.0), initSkew * rZ(M_PI/12.0));
 }
 Node* genLeafBunch(const float rho = M_PI/3.0, const float radius = 1.0, const float prob = 0.5,
 				const int numLeaves = 10, const mat4& initTrans = ID, const mat4& initSkew = ID) {
@@ -1719,7 +1742,8 @@ Node* genLeafBunch(const float rho = M_PI/3.0, const float radius = 1.0, const f
 	for (int i = 1; i < numLeaves; ++i) {
 		rotMat = rY( randNum(0.0, 2.0 * M_PI) ) * rX( randNum(0.0, M_PI/2.0) );
 		tempRotate = rY( randNum(0.0, 2.0 * M_PI) ) * rX( randNum(0.0, rho) );
-		bunch->addChild( new Node(nullptr, genLeaf(prob), nullptr, tempRotate * tempTrans * rotMat, tempRotate) );
+		bunch->addChild( new Node(nullptr, genLeaf(prob), nullptr,
+			tempRotate * tempTrans * rotMat, tempRotate * rotMat) );
 	}
 
 	return bunch;
@@ -1789,11 +1813,11 @@ Node* genForest(const int numTrees = 10, const float minR = 5.0, const float max
 				const mat4& initTrans = ID, const mat4& initSkew = ID) {
 	Node* forest = new Node(nullptr, nullptr, nullptr, initTrans, initSkew);
 
-	mat4 rotMat = rY(0.35 * numTrees + 2.0 * M_PI / numTrees);
+	mat4 rotMat = rY(0.3 * numTrees + 2.0 * M_PI / numTrees);
 	mat4 tempPosit = ID;
 	for (int i = 0; i < numTrees; ++i, rotMat *= rotMat) {
 		tempPosit = rotMat * translate(0.0, 0.0, -randNum(minR, maxR));
-		forest->addChild( genTree( 2, 1, 100, 0.5, 0.5, 1.6, tempPosit, tempPosit ) );
+		forest->addChild( genTree( 3, 2, 150, 0.5, 0.5, 1.6, tempPosit, tempPosit ) );
 	}
 
 	return forest;
@@ -1911,11 +1935,11 @@ Node* genHouse(const mat4& initTrans = ID, const mat4& initSkew = ID) {
 Node* genIdyl(const int numRows = 2, const float thinness = 1.0,
 				const mat4& initTrans = ID, const mat4& initSkew = ID) {
 	Node* scene = new Node(outsideState, nullptr, nullptr, initTrans, initSkew);
-	scene->addChild( genDrivingScene(thinness) );
-	scene->addChild( genGround(0.001, 5.0) );
+	scene->addChild( carScene = genDrivingScene(thinness) );
+	scene->addChild( genGround(0.001, 20.0) );
 	mat4 tempRotate = ID;
 	for (int i = 0, numTrees = 5; i < numRows; ++i, numTrees += 5) {
-		scene->addChild( genForest(numTrees, 11.0 + i * 5.0, 11.0 + (i + 1) * 5.0,
+		scene->addChild( genForest(numTrees, 11.0 + i * 10.0, 8.0 + (i + 1) * 10.0,
 		translate(0.0, 0.32, 0.0) * scale(0.15) ));
 	}
 	scene->addChild( genHouse(translate(0.0, 0.1, 0.0) * scale(0.2)) );
@@ -1927,12 +1951,14 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	GLuint vao[17];
 	GLuint vbo[17];
 	GLuint vea[17];
+	GLuint occ[17];
 	GLuint posit_loc = glGetAttribLocation(currentProg, "vPosition");
 	GLuint color_loc = glGetAttribLocation(currentProg, "vColor");
 	GLuint norm_loc = glGetAttribLocation(currentProg, "vNormal");
 	glGenVertexArrays(17, vao);
 	glGenBuffers(17, vbo);
 	glGenBuffers(17, vea);
+	glGenQueries(17, occ);
 	
 	//Ground
 	const SquareGen square = SquareGen(darkgreen_opaque);
@@ -1950,7 +1976,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	groundSquare = new Primitive(vao[0], square.numIndices);
+	groundSquare = new Primitive(vao[0], square.numIndices, occ[0]);
 
 	//Wheel
 	const CylinderGen cylinder = CylinderGen(5, steel_opaque);
@@ -1968,7 +1994,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	wheelCylinder = new Primitive(vao[1], cylinder.numIndices);
+	wheelCylinder = new Primitive(vao[1], cylinder.numIndices, occ[1]);
 
 	const TubeGen tube = TubeGen(0.5, 30, steel_opaque, black_opaque);
 	glBindVertexArray(vao[2]);
@@ -1985,7 +2011,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	wheelTube = new Primitive(vao[2], tube.numIndices);
+	wheelTube = new Primitive(vao[2], tube.numIndices, occ[2]);
 
 	//Chassis
 	const SphereGen sphere = SphereGen(12, 4, paint);
@@ -2003,7 +2029,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	carSphere = new Primitive(vao[3], sphere.numIndices);
+	carSphere = new Primitive(vao[3], sphere.numIndices, occ[3]);
 
 	const CubeGen cube = CubeGen(paint);
 	glBindVertexArray(vao[4]);
@@ -2020,7 +2046,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	carCube = new Primitive(vao[4], cube.numIndices);
+	carCube = new Primitive(vao[4], cube.numIndices, occ[4]);
 
 	//Road
 	const RingGen ring = RingGen(thinness * 0.5, 30, black_opaque);
@@ -2038,7 +2064,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	roadRing = new Primitive(vao[5], ring.numIndices);
+	roadRing = new Primitive(vao[5], ring.numIndices, occ[5]);
 
 	//Leaf
 	const FanGen fan1 = FanGen(darkgreen_opaque, yellow_opaque);
@@ -2056,7 +2082,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	leaf[0] = new Primitive(vao[6], fan1.numIndices);
+	leaf[0] = new Primitive(vao[6], fan1.numIndices, occ[6]);
 
 	const FanGen fan2 = FanGen(yellow_opaque, red_opaque);
 	glBindVertexArray(vao[7]);
@@ -2073,7 +2099,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	leaf[1] = new Primitive(vao[7], fan2.numIndices);
+	leaf[1] = new Primitive(vao[7], fan2.numIndices, occ[7]);
 
 	//Tree
 	const ConeGen cone = ConeGen(4, darkbrown_opaque);
@@ -2091,7 +2117,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	treeCone = new Primitive(vao[8], cone.numIndices);
+	treeCone = new Primitive(vao[8], cone.numIndices, occ[8]);
 
 	const CylinderGen cylinder2 = CylinderGen(8, darkbrown_opaque);
 	glBindVertexArray(vao[9]);
@@ -2108,7 +2134,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	treeCylinder = new Primitive(vao[9], cylinder2.numIndices);
+	treeCylinder = new Primitive(vao[9], cylinder2.numIndices, occ[9]);
 
 	CircleGen circle = CircleGen(16, white_opaque);
 	glBindVertexArray(vao[10]);
@@ -2125,7 +2151,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	sunDisk = new Primitive(vao[10], circle.numIndices);
+	sunDisk = new Primitive(vao[10], circle.numIndices, occ[10]);
 
 	const CubeGen cube2 = CubeGen(darkbrown_opaque);
 	glBindVertexArray(vao[11]);
@@ -2142,7 +2168,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	houseCube = new Primitive(vao[11], cube2.numIndices);
+	houseCube = new Primitive(vao[11], cube2.numIndices, occ[11]);
 
 	const ConeGen tetra = ConeGen(4, darkred_opaque);
 	glBindVertexArray(vao[12]);
@@ -2159,7 +2185,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	housePyramid = new Primitive(vao[12], tetra.numIndices);
+	housePyramid = new Primitive(vao[12], tetra.numIndices, occ[12]);
 
 	const SquareGen square2 = SquareGen(darkbrown_opaque);
 	glBindVertexArray(vao[13]);
@@ -2176,7 +2202,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	houseSquare = new Primitive(vao[13], square2.numIndices);
+	houseSquare = new Primitive(vao[13], square2.numIndices, occ[13]);
 
 	const TubeGen tube2 = TubeGen(4, darkred_opaque);
 	glBindVertexArray(vao[14]);
@@ -2193,7 +2219,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	furnTube = new Primitive(vao[14], tube2.numIndices);
+	furnTube = new Primitive(vao[14], tube2.numIndices, occ[14]);
 
 	const CubeGen cube3 = CubeGen(white_opaque);
 	glBindVertexArray(vao[15]);
@@ -2210,7 +2236,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	furnCube0 = new Primitive(vao[15], cube3.numIndices);
+	furnCube0 = new Primitive(vao[15], cube3.numIndices, occ[15]);
 
 	const CubeGen cube4 = CubeGen(blue_opaque);
 	glBindVertexArray(vao[16]);
@@ -2227,7 +2253,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	furnCube1 = new Primitive(vao[16], cube4.numIndices);
+	furnCube1 = new Primitive(vao[16], cube4.numIndices, occ[16]);
 }
 
 //reshapes the viewport so that it is square and in the middle of the window
@@ -2257,8 +2283,8 @@ void em_Timer(int t) {
 	if (animating) {
 		const mat4 tempRotate = rZ(M_PI/2000.0);
 		sunVec = tempRotate * sunVec;
-		sun->transform(tempRotate);
-		root->animate(M_PI/400.0);
+		if (sun != nullptr) sun->transform(tempRotate);
+		if (carScene != nullptr) carScene->animate(M_PI/400.0);
 		glutPostRedisplay();
 	}
 	glutTimerFunc(20, em_Timer, 0);
@@ -2382,6 +2408,7 @@ void em_Init() {
 	sun_loc = glGetUniformLocation(currentProg, "sunDirect");
 	isSun_loc = glGetUniformLocation(currentProg, "isSun");
 	isInside_loc = glGetUniformLocation(currentProg, "isInside");
+	occlusion_loc = glGetUniformLocation(currentProg, "occlusionTest");
 
 	em_MeshSetUp(red_opaque, 1.2);
 	light = new PointLight("lightPosit");
@@ -2389,12 +2416,13 @@ void em_Init() {
 	insideState = new BoolState(1.0, 0.0);
 	outsideState = new BoolState(0.0, 0.0);
 
-	root = genIdyl(3, 1.2, translate(20.0, -6.5, -50.0) * scale(100.0));
+	root = genIdyl(5, 1.2, translate(20.0, -6.5, -50.0) * scale(100.0));
 	sun = genSun( translate(2000.0 * sunVec.x, 2000.0 * sunVec.y, 2000.0 * sunVec.z) *
 		scale(65.0) * rX(M_PI/2.0) );
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CLIP_PLANE0);
 
 	em_Help();
 }
@@ -2410,7 +2438,7 @@ void em_Display() {
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	glUniformMatrix4fv(camera_loc, 1, GL_TRUE, projMat * pitchMat * rollMat * yawMat);
-	if (sun != nullptr) sun->draw();
+	if (sun != nullptr) sun->draw(ID, ID, true);
 
 	glUniformMatrix4fv(camera_loc, 1, GL_TRUE, projMat * pitchMat * rollMat * positMat);
 	glUniform4fv(sun_loc, 1, sunVec);
@@ -2451,5 +2479,6 @@ int main( int argc, char **argv ) {
 
 	if (root != nullptr) delete root;
 	if (sun != nullptr) delete sun;
+	glDeleteProgram(currentProg);
     return 0;
 }
