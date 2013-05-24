@@ -45,7 +45,7 @@ vec4 sunVec = vec4(0.0, 1.0, 0.0, 0.0);
 
 //shader pointers
 GLuint currentProg;
-GLuint camera_loc, trans_loc, skew_loc, sun_loc, isSun_loc, isInside_loc, occlusion_loc;
+GLuint camera_loc, trans_loc, skew_loc, sun_loc, isSun_loc, isInside_loc;
 
 //Node and Object definitions
 class Object {
@@ -128,22 +128,26 @@ public:
 		localSkew = skew * localSkew;
 	}
 	void draw(const mat4& trans = ID, const mat4& skew = ID, const bool noRecalc = false) {
-		if (object != nullptr || child != nullptr) {
-			if (animation != nullptr || noRecalc) {
-				const mat4 drawTrans = trans * localTrans;
-				const mat4 drawSkew = skew * localSkew;
-				if (object != nullptr) object->draw(drawTrans, drawSkew);
-				if (child != nullptr) child->draw(drawTrans, drawSkew, true);
-			} else if (recalc) {
-				localTrans = trans * localTrans;
-				localSkew = skew * localSkew;
-				recalc = false;
-				if (object != nullptr) object->draw(localTrans, localSkew);
-				if (child != nullptr) child->draw(localTrans, localSkew);
-			} else {
-				if (object != nullptr) object->draw(localTrans, localSkew);
-				if (child != nullptr) child->draw(localTrans, localSkew);
-			}
+		//Recalc flags whether the node has stored the result of its matrix multiplication.
+		//On the first call of draw(), if a node is not animated, it stores the result of its
+		//local multiplication. On future calls, instead of recalculating the same product, it
+		//uses the stored result. If the node is animated, or the child of an animated node, then
+		//it continues to perform multiplications every frame, ensuring that nodes participating
+		//in an animation do not become frozen.
+		if (animation != nullptr || noRecalc) {
+			const mat4 drawTrans = trans * localTrans;
+			const mat4 drawSkew = skew * localSkew;
+			if (object != nullptr) object->draw(drawTrans, drawSkew);
+			if (child != nullptr) child->draw(drawTrans, drawSkew, true);
+		} else if (recalc) {
+			localTrans = trans * localTrans;
+			localSkew = skew * localSkew;
+			recalc = false;
+			if (object != nullptr) object->draw(localTrans, localSkew);
+			if (child != nullptr) child->draw(localTrans, localSkew);
+		} else {
+			if (object != nullptr) object->draw(localTrans, localSkew);
+			if (child != nullptr) child->draw(localTrans, localSkew);
 		}
 		if (sibling != nullptr) sibling->draw(trans, skew, noRecalc);
 	}
@@ -2284,7 +2288,9 @@ void em_Timer(int t) {
 		const mat4 tempRotate = rZ(M_PI/2000.0);
 		sunVec = tempRotate * sunVec;
 		if (sun != nullptr) sun->transform(tempRotate);
-		if (carScene != nullptr) carScene->animate(M_PI/400.0);
+		//By keeping a pointer to the car scene, I can call animate() on it without incurring the overhead
+		//of calling the function recursively on the rest of the object tree, when only the car is animated.
+		if (carScene != nullptr) carScene->animate(M_PI/400.0, false);
 		glutPostRedisplay();
 	}
 	glutTimerFunc(20, em_Timer, 0);
@@ -2408,7 +2414,6 @@ void em_Init() {
 	sun_loc = glGetUniformLocation(currentProg, "sunDirect");
 	isSun_loc = glGetUniformLocation(currentProg, "isSun");
 	isInside_loc = glGetUniformLocation(currentProg, "isInside");
-	occlusion_loc = glGetUniformLocation(currentProg, "occlusionTest");
 
 	em_MeshSetUp(red_opaque, 1.2);
 	light = new PointLight("lightPosit");

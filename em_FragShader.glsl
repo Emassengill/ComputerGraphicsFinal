@@ -4,7 +4,6 @@ uniform vec4 sunDirect = {0.4082f, 0.8165f, 0.4082f, 0.0f};
 uniform vec4 lightPosit = {0.0f, 0.0f, 0.0f, 1.0f};
 uniform float isInside = 0.0f;
 uniform float isSun = 0.0f;
-uniform float occlusionTest = 0.0f;
 
 in vec3 point;
 in vec3 color;
@@ -16,10 +15,9 @@ out vec3 outputColor;
 void main() {
 	outputColor = color;
 
-	if (isSun == 0.0f && occlusionTest == 0.0f) {
-		//The y component of the sunlight vector is used
-		//to adjust ambient lighting to coincide with night
-		//and sunset/sunrise.
+	if (isSun == 0.0f) {
+		//The y component of the sunlight vector is used to adjust ambient lighting to coincide
+		//with night and sunset-sunrise.
 		float tempDirect = pow(abs(sunDirect.y), 0.4f);
 		float ambient = 0.536f * pow(sunDirect.y + 1.0f, 0.9f);
 
@@ -36,10 +34,8 @@ void main() {
 			modulator = brightness + ambient;
 			lightColor = vec3( 1.0f, 0.65f + 0.35f * tempDirect, 0.4f + 0.6f * tempDirect );
 		} else {
-			//If inside, an alternative model based on point
-			//lighting is used. The ambient lighting
-			//component is determined similarly to outside
-			//ambient lighting to simulate the effect
+			//If inside, and alternative model based on point lighting is used. The ambient lighting
+			//component is determined similarly to outside ambient lighting to simulate the effect
 			//of light spilling into the house through the door.
 			float brightness = dot(normal, sunDirect.xyz);
 			if (brightness <= 0.0f) brightness = 0.0f;

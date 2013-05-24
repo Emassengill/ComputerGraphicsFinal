@@ -15,7 +15,6 @@ uniform vec4 lightPosit = {0.0f, 0.0f, 0.0f, 1.0f};
 //be switched without having to change the entire shading program.
 uniform float isInside = 0.0f;
 uniform float isSun = 0.0f;
-uniform float occlusionTest = 0.0f;
 
 in vec4 vPosition;
 in vec4 vColor;
@@ -34,6 +33,6 @@ void main() {
 	gl_Position = position;
 	point = tempVec.xyz;
 	color = vColor.rgb;
-	if (occlusionTest == 1.0f || isSun == 1.0f) normal = vec3(0.0f);
+	if (isSun == 1.0f) normal = vec3(0.0f);
 	else normal = normalize( (nTrans * vNormal).xyz );
 }
