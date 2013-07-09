@@ -32,7 +32,7 @@ const color4 blue_opaque = color4( 0.0, 0.0, 1.0, 1.0 );
 const color4 yellow_opaque = color4( 1.0, 1.0, 0.0, 1.0 );
 const color4 darkbrown_opaque = color4( 0.6, 0.4, 0.2, 1.0 );
 
-const float speed = 0.5;
+const float speed = 1.5;
 bool crouching = false;
 bool animating = true;
 
@@ -45,7 +45,7 @@ vec4 sunVec = vec4(0.0, 1.0, 0.0, 0.0);
 
 //shader pointers
 GLuint currentProg;
-GLuint camera_loc, trans_loc, skew_loc, sun_loc, isSun_loc, isInside_loc;
+GLuint camera_loc, proj_loc, trans_loc, skew_loc, spec_loc, sun_loc, isSun_loc, isInside_loc;
 
 //Node and Object definitions
 class Object {
@@ -60,10 +60,12 @@ private:
 	GLuint vao;
 	GLsizei numVertices;
 	GLuint occ;
+	GLfloat specexp;
 protected:
 	virtual void inheritDraw(const mat4& trans, const mat4& skew) override {
 		glUniformMatrix4fv(trans_loc, 1, GL_TRUE, trans);
 		glUniformMatrix4fv(skew_loc, 1, GL_TRUE, skew);
+		glUniform1f(spec_loc, specexp);
 	
 		glBindVertexArray(vao);
 		glBeginConditionalRender(occ, GL_QUERY_NO_WAIT);
@@ -72,8 +74,8 @@ protected:
 		glBindVertexArray(0);
 	}
 public:
-	Primitive(const GLuint vaobj, const GLsizei numVerts, const GLuint qry)
-		: vao(vaobj), numVertices(numVerts), occ(qry) {}
+	Primitive(const GLuint vaobj, const GLsizei numVerts, const GLuint qry, const GLfloat spec = 0.0)
+		: vao(vaobj), numVertices(numVerts), occ(qry), specexp(spec) {}
 	~Primitive() {
 		glDeleteVertexArrays(1, &vao);
 		if (occ != (GLuint)0) glDeleteQueries(1, &occ);
@@ -85,7 +87,7 @@ private:
 protected:
 	virtual void inheritDraw(const mat4& trans, const mat4& skew) override {
 		GLuint light_loc = glGetUniformLocation(currentProg, target);
-		glUniform4fv(light_loc, 1, vec4(trans[0][3], trans[1][3], trans[2][3], trans[3][3]));
+		glUniform3fv(light_loc, 1, vec3(trans[0][3], trans[1][3], trans[2][3]));
 	}
 public:
 	PointLight(char* const targ) : target(targ) {}
@@ -104,19 +106,11 @@ public:
 };
 
 class Node {
-private:
-	Object* object;
-	Node* child;
-	Node* sibling;
-	mat4 localTrans;
-	mat4 localSkew;
-	mat4 (*animation)(const float);
-	bool recalc;
 public:
 	Node(Object* obj = nullptr, Node* sub = nullptr, Node* next = nullptr,
 		const mat4& trans = ID, const mat4& skew = ID, mat4 (*animFunc)(const float) = nullptr)
 		: object(obj), child(sub), sibling(next),
-			localTrans(trans), localSkew(skew), animation(animFunc), recalc(true) {}
+			localTrans(trans), localSkew(skew), animation(animFunc), cached(false) {}
 	~Node() {
 		if (child != nullptr) delete child;
 		if (sibling != nullptr) delete sibling;
@@ -127,29 +121,29 @@ public:
 		localTrans = trans * localTrans;
 		localSkew = skew * localSkew;
 	}
-	void draw(const mat4& trans = ID, const mat4& skew = ID, const bool noRecalc = false) {
+	void draw(const mat4& trans = ID, const mat4& skew = ID, const bool dynamic = false) {
 		//Recalc flags whether the node has stored the result of its matrix multiplication.
 		//On the first call of draw(), if a node is not animated, it stores the result of its
 		//local multiplication. On future calls, instead of recalculating the same product, it
 		//uses the stored result. If the node is animated, or the child of an animated node, then
 		//it continues to perform multiplications every frame, ensuring that nodes participating
 		//in an animation do not become frozen.
-		if (animation != nullptr || noRecalc) {
+		if (animation != nullptr || dynamic) {
 			const mat4 drawTrans = trans * localTrans;
 			const mat4 drawSkew = skew * localSkew;
 			if (object != nullptr) object->draw(drawTrans, drawSkew);
 			if (child != nullptr) child->draw(drawTrans, drawSkew, true);
-		} else if (recalc) {
+		} else if (!cached) {
 			localTrans = trans * localTrans;
 			localSkew = skew * localSkew;
-			recalc = false;
+			cached = true;
 			if (object != nullptr) object->draw(localTrans, localSkew);
 			if (child != nullptr) child->draw(localTrans, localSkew);
 		} else {
 			if (object != nullptr) object->draw(localTrans, localSkew);
 			if (child != nullptr) child->draw(localTrans, localSkew);
 		}
-		if (sibling != nullptr) sibling->draw(trans, skew, noRecalc);
+		if (sibling != nullptr) sibling->draw(trans, skew, dynamic);
 	}
 	void animate(const float number = 0.0, const bool parentCall = true) {
 		if (animation != nullptr) {
@@ -160,7 +154,7 @@ public:
 		if (child != nullptr) child->animate(number);
 		if (sibling != nullptr && parentCall) sibling->animate(number);	
 	}
-	void addChild(Node* node) {
+	virtual void addChild(Node* node) {
 		if (child == nullptr) child = node;
 		else for (Node* current = child; current != nullptr; current = current->sibling)
 			if (current->sibling == nullptr) {
@@ -168,7 +162,25 @@ public:
 				break;
 			}
 	}
+private:
+	Object* object;
+	Node* child;
+	Node* sibling;
+	mat4 localTrans;
+	mat4 localSkew;
+	mat4 (*animation)(const float);
+	bool cached;
 };
+/*class Environment : public Node {
+private:
+
+protected:
+	virtual void inheritTrans(const mat4& trans, const mat4& skew) override;
+	virtual void inheritDraw(const mat4& trans, const mat4& skew, const bool noRecalc) override;
+	virtual void inheritAnim(const float number, const bool parentCall) override;
+public:
+	virtual void addChild(Node* node) override;
+};*/
 
 //Global Objects
 //For Chassis
@@ -1998,7 +2010,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	wheelCylinder = new Primitive(vao[1], cylinder.numIndices, occ[1]);
+	wheelCylinder = new Primitive(vao[1], cylinder.numIndices, occ[1], 25.0);
 
 	const TubeGen tube = TubeGen(0.5, 30, steel_opaque, black_opaque);
 	glBindVertexArray(vao[2]);
@@ -2033,7 +2045,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	carSphere = new Primitive(vao[3], sphere.numIndices, occ[3]);
+	carSphere = new Primitive(vao[3], sphere.numIndices, occ[3], 25.0);
 
 	const CubeGen cube = CubeGen(paint);
 	glBindVertexArray(vao[4]);
@@ -2050,7 +2062,7 @@ void em_MeshSetUp(const color4& paint = red_opaque, const float thinness = 1.0) 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	carCube = new Primitive(vao[4], cube.numIndices, occ[4]);
+	carCube = new Primitive(vao[4], cube.numIndices, occ[4], 25.0);
 
 	//Road
 	const RingGen ring = RingGen(thinness * 0.5, 30, black_opaque);
@@ -2290,7 +2302,7 @@ void em_Timer(int t) {
 		if (sun != nullptr) sun->transform(tempRotate);
 		//By keeping a pointer to the car scene, I can call animate() on it without incurring the overhead
 		//of calling the function recursively on the rest of the object tree, when only the car is animated.
-		if (carScene != nullptr) carScene->animate(M_PI/400.0, false);
+		if (carScene != nullptr) carScene->animate(M_PI/250.0, false);
 		glutPostRedisplay();
 	}
 	glutTimerFunc(20, em_Timer, 0);
@@ -2409,11 +2421,15 @@ void em_Init() {
     glUseProgram(currentProg);
 
 	camera_loc = glGetUniformLocation(currentProg, "Camera");
+	proj_loc = glGetUniformLocation(currentProg, "Projection");
 	trans_loc = glGetUniformLocation(currentProg, "vTrans");
 	skew_loc = glGetUniformLocation(currentProg, "nTrans");
+	spec_loc = glGetUniformLocation(currentProg, "specexp");
 	sun_loc = glGetUniformLocation(currentProg, "sunDirect");
 	isSun_loc = glGetUniformLocation(currentProg, "isSun");
 	isInside_loc = glGetUniformLocation(currentProg, "isInside");
+
+	glUniformMatrix4fv(proj_loc, 1, GL_TRUE, projMat);
 
 	em_MeshSetUp(red_opaque, 1.2);
 	light = new PointLight("lightPosit");
@@ -2442,10 +2458,10 @@ void em_Display() {
 	
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-	glUniformMatrix4fv(camera_loc, 1, GL_TRUE, projMat * pitchMat * rollMat * yawMat);
+	glUniformMatrix4fv(camera_loc, 1, GL_TRUE, pitchMat * rollMat * yawMat);
 	if (sun != nullptr) sun->draw(ID, ID, true);
 
-	glUniformMatrix4fv(camera_loc, 1, GL_TRUE, projMat * pitchMat * rollMat * positMat);
+	glUniformMatrix4fv(camera_loc, 1, GL_TRUE, pitchMat * rollMat * positMat);
 	glUniform4fv(sun_loc, 1, sunVec);
 	if (root != nullptr) root->draw();
 	
