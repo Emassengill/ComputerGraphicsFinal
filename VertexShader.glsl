@@ -10,14 +10,15 @@ uniform float specexp = 0.0f;
 
 //Vectors for specifying a single directional light source
 //and a single point light source.
-uniform vec4 sunDirect = {0.408f, 0.817f, 0.408f, 0.0f};
-uniform vec3 lightPosit = {0.0f, 0.0f, 0.0f};
+uniform vec4 directLight = {0.408f, 0.817f, 0.408f, 0.0f};
+uniform vec3 pointLight = {0.0f, 0.0f, 0.0f};
 
 //These uniform floats are used as boolean values that specify
 //functionality in the shaders. In this way, shading models can
 //be switched without having to change the entire shading program.
 uniform float isInside = 0.0f;
 uniform float isSun = 0.0f;
+uniform float shadowMap = 0.0f;
 
 in vec4 vPosition;
 in vec4 vColor;
@@ -34,7 +35,12 @@ void main() {
 	tempVec = Camera * tempVec;
 	viewerPoint = tempVec.xyz;
 	gl_Position = Projection * tempVec;
-	color = vColor.rgb;
-	if (isSun > 0.0f) normal = vec3(0.0f);
-	else normal = normalize( (nTrans * vNormal).xyz );
+	if (shadowMap < 0.5f) {
+		color = vColor.rgb;
+		if (isSun > 0.0f) normal = vec3(0.0f);
+		else normal = normalize( (nTrans * vNormal).xyz );
+	} else {
+		color = vec3(0.0f);
+		normal = vec3(0.0f);
+	}
 }

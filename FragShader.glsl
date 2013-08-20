@@ -3,11 +3,12 @@
 uniform mat4 Camera = mat4(1.0f);
 uniform float specexp = 0.0f;
 
-uniform vec4 sunDirect = {0.4082f, 0.8165f, 0.4082f, 0.0f};
-uniform vec3 lightPosit = {0.0f, 0.0f, 0.0f};
+uniform vec4 directLight = {0.4082f, 0.8165f, 0.4082f, 0.0f};
+uniform vec3 pointLight = {0.0f, 0.0f, 0.0f};
 
 uniform float isInside = 0.0f;
 uniform float isSun = 0.0f;
+uniform float shadowMap = 0.0f;
 
 in vec3 globalPoint;
 in vec3 viewerPoint;
@@ -19,22 +20,22 @@ out vec3 outputColor;
 //Utilizes Blinn-Phong shading.
 void main() {
 
-	if (isSun < 0.5f) {
+	if (isSun < 0.5f && shadowMap < 0.05f) {
 
 		//The y component of the sunlight vector is used to
 		//adjust ambient lighting to coincide
 		//with night and sunset/sunrise.
-		float tempDirect = pow(abs(sunDirect.y), 0.4f);
-		float ambient = 0.536f * pow(sunDirect.y + 1.0f, 0.9f);
+		float tempDirect = pow(abs(directLight.y), 0.4f);
+		float ambient = 0.536f * pow(directLight.y + 1.0f, 0.9f);
 
 		float specular;
 		float modulator;
 		vec3 lightColor;
 
 		if (isInside < 0.5f) {
-			float brightness = dot(normal, sunDirect.xyz);
+			float brightness = dot(normal, directLight.xyz);
 			if (brightness <= 0.0f) brightness = 0.0f;
-			else brightness *= 0.25f * pow(sunDirect.y + 1.0f, 2.0f);
+			else brightness *= 0.25f * pow(directLight.y + 1.0f, 2.0f);
 		
 			ambient = 0.15f + 0.35f * ambient;
 			modulator = brightness + ambient;
@@ -43,24 +44,24 @@ void main() {
 			//making the ambient lighting reder.
 			lightColor = vec3( 1.0f, 0.5f + 0.5f * tempDirect, 0.2f + 0.8f * tempDirect );
 
-			if (sunDirect.y < 0.0f) {
+			if (directLight.y < 0.0f) {
 				specular = 0.0f;
 			} else if (specexp > 0.0f) {
-				vec3 halfway = normalize( sunDirect.xyz - normalize(viewerPoint) );
+				vec3 halfway = normalize( directLight.xyz - normalize(viewerPoint) );
 				specular = dot(halfway, normal);
 				if (specular > 0.0f) specular = pow(specular, specexp);
 				else specular = 0.0f;
 			}
-		} else {
+		} else { // if (isInside >= 0.5f)
 			//If inside, an alternative model based on point lighting
 			//is used. The ambient lighting component is determined
 			//similarly to outside ambient lighting to simulate the
 			//effect of lighting spilling into the house through the door.
 
-			vec3 lightVec = lightPosit - globalPoint;
+			vec3 lightVec = pointLight - globalPoint;
 			float brightness = 54.0f * dot(normal, normalize(lightVec));
 			if (brightness <= 0.0f) brightness = 0.0f;
-			else brightness /= 0.1f + pow(length(lightVec), 2.0f);
+			else brightness /= 0.01f + pow(length(lightVec), 3.5f);
 		
 			ambient = 0.2f + 0.3f * ambient;
 			modulator = brightness + ambient;
@@ -82,7 +83,7 @@ void main() {
 		//diffusely scattered. This ensures that all color components fall in the range of [0.0, 1.0].
 			outputColor = modulator * lightColor * ( specular + ( (1.0f - specular) * color ) );
 
-	} else {
+	} else { // if (isSun >= 0.5f || shadowMap >= 0.5f)
 
 		outputColor = color;
 
