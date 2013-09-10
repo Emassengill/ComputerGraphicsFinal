@@ -6,9 +6,10 @@
 
 #include "Object.h"
 #include "Primitive.h"
-#include "PointLight.h"
+#include "Lightsource.h"
 #include "BoolState.h"
 
+#include "RenderGraph.h"
 #include "Node.h"
 #include "ObjectNode.h"
 
@@ -23,13 +24,16 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	GLuint vbo[17];
 	GLuint vea[17];
 	GLuint occ[17];
-	GLuint posit_loc = glGetAttribLocation(Global::currentProg, "vPosition");
-	GLuint color_loc = glGetAttribLocation(Global::currentProg, "vColor");
-	GLuint norm_loc = glGetAttribLocation(Global::currentProg, "vNormal");
+
+	GLuint posit_loc = GLuint(0);
+	GLuint color_loc = GLuint(1);
+	GLuint norm_loc = GLuint(2);
+
 	glGenVertexArrays(17, vao);
 	glGenBuffers(17, vbo);
 	glGenBuffers(17, vea);
 	glGenQueries(17, occ);
+
 	
 	//Ground
 	const SquareGen square = SquareGen(Global::darkgreen_opaque);
@@ -65,7 +69,7 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	Global::wheelCylinder = new Primitive(vao[1], cylinder.numIndices, occ[1], 25.0);
+	Global::wheelCylinder = new Primitive(vao[1], cylinder.numIndices, occ[1], 12.0);
 
 	const TubeGen tube = TubeGen(0.5, 30, Global::steel_opaque, Global::black_opaque);
 	glBindVertexArray(vao[2]);
@@ -100,7 +104,7 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	Global::carSphere = new Primitive(vao[3], sphere.numIndices, occ[3], 25.0);
+	Global::carSphere = new Primitive(vao[3], sphere.numIndices, occ[3], 12.0);
 
 	const CubeGen cube = CubeGen(paint);
 	glBindVertexArray(vao[4]);
@@ -117,7 +121,7 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	Global::carCube = new Primitive(vao[4], cube.numIndices, occ[4], 25.0);
+	Global::carCube = new Primitive(vao[4], cube.numIndices, occ[4], 12.0);
 
 	//Road
 	const RingGen ring = RingGen(thinness * 0.5, 30, Global::black_opaque);
@@ -327,8 +331,9 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	Global::furnCube1 = new Primitive(vao[16], cube4.numIndices, occ[16]);
 }
 
+void reshape(int w, int h)
 //reshapes the viewport so that it is square and in the middle of the window
-void reshape(int w, int h) {
+{
 	Global::ww = w;
 	Global::wh = h;
 	if (w < h) {
@@ -349,15 +354,15 @@ void reshape(int w, int h) {
 	glViewport(Global::viewx, Global::viewy, Global::viewDim, Global::viewDim);
 }
 
+void timer(int t)
 //animates the scene
-void timer(int t) {
+{
 	if (Global::animating) {
-		const mat4 tempRotate = MatMath::rZ(M_PI/2000.0);
-		Global::sunVec = tempRotate * Global::sunVec;
-		if (Global::sun != nullptr) Global::sun->transform(tempRotate);
+		Global::sunVec = MatMath::rZ(M_PI/2000.0) * Global::sunVec;
+		if (Global::sun != nullptr) Global::sun->animate(M_PI/250.0);
 		//By keeping a pointer to the car scene, I can call animate() on it without incurring the overhead
 		//of calling the function recursively on the rest of the object tree, Global::when only the car is animated.
-		if (Global::carScene != nullptr) Global::carScene->animate(M_PI/250.0, false);
+		if (Global::root != nullptr) Global::root->animate(M_PI/250.0);
 		glutPostRedisplay();
 	}
 	glutTimerFunc(20, timer, 0);
@@ -386,10 +391,6 @@ void cleanup( ) {
 	delete Global::houseCube; delete Global::housePyramid; delete Global::houseSquare;
 	//For Furniture
 	delete Global::furnTube; delete Global::furnCube0; delete Global::furnCube1;
-	//For Special
-	delete Global::light; delete Global::sunState; delete Global::insideState; delete Global::outsideState;
-
-	glDeleteProgram(Global::currentProg);
 }
 
 void keyboard(unsigned char key, int x, int y) {
@@ -459,16 +460,17 @@ void mouse(int button, int state, int p, int q) {
 		Global::leftMouse = false;
 }
 
+void mouseMotion(int p, int q)
 //rotates the camera if the left mouse button is pressed down.
 //assumes user is clicking and pulling on a plane parallel to the projection plane,
 //and approximates the angle of rotation by using the sphere tangent to that plane.
 //for the plane at z = -1, that is the unit sphere, along Global::which all arcs are equal
 //to the angle that subtends them, meaning that the distance moved by the mouse
 //along the tangent plane can be directly plugged in as the angle of rotation
-void mouseMotion(int p, int q) {
+{
 	if (Global::leftMouse) {
-		float delta_p = 2.5 * Global::FOV * (M_PI/180.0) * (p - Global::pRef) / Global::viewDim;
-		float delta_q = 2.0 * Global::FOV * (M_PI/180.0) * (q - Global::qRef) / Global::viewDim;
+		float delta_p = 3.0 * Global::FOV * (M_PI/180.0) * (p - Global::pRef) / Global::viewDim;
+		float delta_q = 2.5 * Global::FOV * (M_PI/180.0) * (q - Global::qRef) / Global::viewDim;
 		mat4 delta_yaw = MatMath::rY(delta_p);
 		Global::pitchTheta = (Global::pitchTheta + delta_q > -M_PI/2.0 && Global::pitchTheta + delta_q < M_PI/2.0) ?
 			Global::pitchTheta + delta_q : Global::pitchTheta;
@@ -481,9 +483,11 @@ void mouseMotion(int p, int q) {
 }
 
 void help() {
-	std::cout <<	"Clicking in the window with the left button\n" <<
+	std::cout <<	std::endl <<
+					std::endl <<
+					"Clicking in the window with the left button\n" <<
 					"and holding it down will allow you to turn around\n" <<
-					"and look up and down based on Global::where you drag the\n" <<
+					"and look up and down based on where you drag the\n" <<
 					"mouse. (Looking up/down is clamped between straight\n" <<
 					"up and straight down.)\n" <<
 					std::endl <<
@@ -497,44 +501,34 @@ void help() {
 }
 
 void init() {
-	srand(time(NULL));
-	for (int i = 0; i < 50; ++i) rand();
-
 	// Load shaders and use the resulting shader program
-    Global::currentProg = InitShader("VertexShader.glsl", "FragShader.glsl");
-    glUseProgram(Global::currentProg);
-
-	Global::camera_loc = glGetUniformLocation(Global::currentProg, "Camera");
-	Global::proj_loc = glGetUniformLocation(Global::currentProg, "Projection");
-	Global::trans_loc = glGetUniformLocation(Global::currentProg, "vTrans");
-	Global::skew_loc = glGetUniformLocation(Global::currentProg, "nTrans");
-	Global::spec_loc = glGetUniformLocation(Global::currentProg, "specexp");
-	Global::sun_loc = glGetUniformLocation(Global::currentProg, "directLight");
-	Global::isSun_loc = glGetUniformLocation(Global::currentProg, "isSun");
-	Global::isInside_loc = glGetUniformLocation(Global::currentProg, "isInside");
-
-	glUniformMatrix4fv(Global::proj_loc, 1, GL_TRUE, Global::projMat);
+    GLuint currentProg = InitShader("VertexShader.glsl", "FragShader.glsl");
+    glUseProgram(currentProg);
 
 	meshSetup(Global::red_opaque, 1.2);
-	Global::light = new PointLight("pointLight");
-	Global::sunState = new BoolState(0.0, 1.0);
-	Global::insideState = new BoolState(1.0, 0.0);
-	Global::outsideState = new BoolState(0.0, 0.0);
 
-	Global::root = genIdyl(5, 1.2, MatMath::translate(20.0, -6.5, -50.0) * MatMath::scale(100.0));
-	Global::sun = genSun( MatMath::translate(2000.0 * Global::sunVec.x, 2000.0 * Global::sunVec.y, 2000.0 * Global::sunVec.z) *
-		MatMath::scale(65.0) * MatMath::rX(M_PI/2.0) );
+	mat4 projection = Perspective(Global::FOV, 1.0f, 0.01f, 40.0f);
+	Global::root = new RenderGraph(
+		currentProg,
+		*genIdyll(5, 1.2, MatMath::translate(20.0, -6.5, -50.0) * MatMath::scale(100.0)),
+		projection
+	);
+	Global::sun = new RenderGraph(
+		currentProg,
+		*genSun( MatMath::translate(2000.0 * Global::sunVec) * MatMath::scale(65.0) * MatMath::rX(M_PI/2.0) ),
+		projection
+	);
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CLIP_PLANE0);
 
 	help();
 }
 
-void Display() {
-	const float tempDirect = pow(abs(Global::sunVec.y), 0.23);
-	const float tempBright = (Global::sunVec.y > 0.0) ? 1.0 : 1.0 - pow(abs(Global::sunVec.y), 0.45);
+void display() {
+	const float sunY = Global::sunVec.y;
+	const float tempDirect = pow(abs(sunY), 0.23);
+	const float tempBright = (sunY > 0.0) ? 1.0 : 1.0 - pow(abs(sunY), 0.45);
 	glClearColor(	tempBright * 0.6,
 					tempBright * (0.25 + 0.35 * tempDirect),
 					tempBright * (0.2 + 0.8 * tempDirect),
@@ -542,14 +536,14 @@ void Display() {
 	
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-	glUniformMatrix4fv(Global::camera_loc, 1, GL_TRUE, Global::pitchMat * Global::rollMat * Global::yawMat);
+	mat4 temp = Global::pitchMat * Global::rollMat;
 	if (Global::sun != nullptr) {
-		Global::sun->draw(MatMath::ID, MatMath::ID, true);
+		Global::sun->setCamera(temp * Global::yawMat);
+		Global::sun->draw();
 	}
-
-	glUniformMatrix4fv(Global::camera_loc, 1, GL_TRUE, Global::pitchMat * Global::rollMat * Global::positMat);
-	glUniform4fv(Global::sun_loc, 1, Global::sunVec);
 	if (Global::root != nullptr) {
+		//glUniform4fv(Global::root->sun_loc, 1, Global::sunVec);
+		Global::root->setCamera(temp * Global::positMat);
 		Global::root->draw();
 	}
 	
@@ -568,7 +562,7 @@ void m_glewInitAndVersion(void) {
 int main( int argc, char **argv ) {
 
     glutInit( &argc, argv );
-    glutInitDisplayMode( GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH );
+    glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
     glutInitWindowSize( Global::viewDim, Global::viewDim );
     glutCreateWindow("Eric Massengill GitHub Graphics Project");
 	m_glewInitAndVersion();
@@ -576,7 +570,7 @@ int main( int argc, char **argv ) {
 	atexit(cleanup);
     init();
 
-    glutDisplayFunc(Display);
+    glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
 	//pass mouse function to glut
 	glutMouseFunc(mouse);

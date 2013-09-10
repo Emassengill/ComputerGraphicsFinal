@@ -5,6 +5,7 @@
 
 class Node;
 class Object;
+class RenderGraph;
 
 class Global {
 public:
@@ -27,14 +28,10 @@ public:
 	static const float ZOOMIN;
 	static const float ZOOMOUT;
 
-	static const float FOV;
-	static const mat4 projMat;
 	static vec4 sunVec;
 	
 	//tree
-	static Node* root;
-	static Node* carScene;
-	static Node* sun;
+	static RenderGraph* root, * sun;
 
 	//camera matrices
 	static mat4 positMat;
@@ -43,6 +40,7 @@ public:
 	static mat4 yawMat;
 
 	static float pitchTheta;
+	static const float FOV;
 
 	//window width and height
 	static int ww;
@@ -51,6 +49,7 @@ public:
 	static int viewx;
 	static int viewy;
 	static int viewDim;
+	static const int SHADOW_BUFFER_DIM = 1024;
 
 	//mouse callback values
 	static bool leftMouse;
@@ -58,30 +57,30 @@ public:
 
 	//Global Objects
 	//For Chassis
-	static Object *carSphere, *carCube;
+	static Object* carSphere, * carCube;
 	//For Wheel
-	static Object *wheelTube, *wheelCylinder;
+	static Object* wheelTube, * wheelCylinder;
 	//For Road
-	static Object *roadRing;
+	static Object* roadRing;
 	//For Ground
-	static Object *groundSquare;
+	static Object* groundSquare;
 	//For Leaf
-	static Object *leaf[2];
+	static Object* leaf[2];
 	//For Tree
-	static Object *treeCone, *treeCylinder;
+	static Object* treeCone, * treeCylinder;
 	//For Sun
-	static Object *sunDisk;
+	static Object* sunDisk;
 	//For House
-	static Object *houseCube, *housePyramid, *houseSquare;
+	static Object* houseCube, * housePyramid, * houseSquare;
 	//For Furniture
-	static Object *furnTube, *furnCube0, *furnCube1;
-	//For Special
-	static Object *light, *sunState, *insideState, *outsideState;
+	static Object* furnTube, * furnCube0, * furnCube1;
 
 	//shader pointers
-	static GLuint currentProg;
-	static GLuint camera_loc, proj_loc, trans_loc, skew_loc;
-	static GLuint spec_loc, sun_loc, isSun_loc, isInside_loc;
+	/*static GLuint currentProg;
+	/*static GLuint camera_loc, proj_loc, trans_loc, skew_loc;
+	static GLuint spec_loc, sun_loc, isSun_loc, isInside_loc, shadowMap_loc;
+	static GLuint shadowTex;*/
+	//static GLuint shadowBuffer;
 
 	//Functions
 	//coordinate system conversion functions

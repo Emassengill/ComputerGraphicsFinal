@@ -8,20 +8,23 @@ class Object;
 
 class ObjectNode : public Node {
 public:
-	ObjectNode(Object* obj = nullptr, Node* sub = nullptr, Node* next = nullptr,
-		const mat4& trans = MatMath::ID, const mat4& skew = MatMath::ID, mat4 (*animFunc)(float) = nullptr);
+	ObjectNode(Object* obj = nullptr, const mat4& trans = MatMath::ID, const mat4& skew = MatMath::ID,
+		mat4 (*animFunc)(float) = nullptr);
+	void transform(const mat4& trans, const mat4& skew = MatMath::ID);
+	virtual void draw(const RenderGraph& context, const mat4& trans, const mat4& skew, bool dynamic,
+		bool drawMode)
+		override;
+	virtual void animate(float number) override;
+	const mat4& getTrans() const;
+	const mat4& getSkew() const;
+	vec4 genTranslation() const;
 protected:
-	virtual void inheritTrans(const mat4& trans, const mat4& skew) override;
-	virtual void inheritDraw(const mat4& trans, const mat4& skew, bool dynamic, bool shadowMap) override;
-	virtual void inheritAnim(float number, bool parentCall) override;
-	const mat4& getTrans();
-	const mat4& getSkew();
+	const Object* _object;
 private:
-	Object* object;
-	mat4 localTrans;
-	mat4 localSkew;
-	mat4 (*animation)(float);
-	bool cached;
+	mat4 _localTrans;
+	mat4 _localSkew;
+	mat4 (*_animation)(float);
+	bool _cached;
 };
 
 #endif

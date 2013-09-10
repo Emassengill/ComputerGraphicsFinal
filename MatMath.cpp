@@ -7,11 +7,10 @@ const point4 MatMath::ORIGIN(0.0, 0.0, 0.0, 1.0);
 const normal4 MatMath::xNORM(1.0, 0.0, 0.0, 0.0);
 const normal4 MatMath::yNORM(0.0, 1.0, 0.0, 0.0);
 const normal4 MatMath::zNORM(0.0, 0.0, 1.0, 0.0);
-const vec3 MatMath::AXES[3] = {
-	vec3(1.0, 0.0, 0.0),
-	vec3(0.0, 1.0, 0.0),
-	vec3(0.0, 0.0, 1.0)
-};
+const vec3 MatMath::xAXIS(1.0, 0.0, 0.0);
+const vec3 MatMath::yAXIS(0.0, 1.0, 0.0);
+const vec3 MatMath::zAXIS(0.0, 0.0, 1.0);
+const vec3 MatMath::AXES[3] = { xAXIS, yAXIS, zAXIS };
 
 inline
 int MatMath::getMin(float first, float second, float third) {
@@ -150,6 +149,18 @@ mat4 MatMath::translate(float x, float y, float z) {
 					0.0, 1.0, 0.0, 0.0,
 					0.0, 0.0, 1.0, 0.0,
 					x, y, z, 1.0		);
+}
+mat4 MatMath::translate(const vec3& direction) {
+	return mat4(	1.0, 0.0, 0.0, 0.0,
+					0.0, 1.0, 0.0, 0.0,
+					0.0, 0.0, 1.0, 0.0,
+			direction.x, direction.y, direction.z, 1.0 );
+}
+mat4 MatMath::translate(const vec4& direction) {
+	return mat4(	1.0, 0.0, 0.0, 0.0,
+					0.0, 1.0, 0.0, 0.0,
+					0.0, 0.0, 1.0, 0.0,
+			direction.x, direction.y, direction.z, 1.0 );
 }
 
 mat4 MatMath::distort(float x, float y, float z) {

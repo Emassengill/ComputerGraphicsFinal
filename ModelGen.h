@@ -40,7 +40,7 @@ ObjectNode* genChair(const mat4& initTrans = MatMath::ID, const mat4& initSkew =
 ObjectNode* genHouseOut(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
 ObjectNode* genHouseIn(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
 ObjectNode* genHouse(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
-ObjectNode* genIdyl(int numRows = 2, float thinness = 1.0, const mat4& initTrans = MatMath::ID,
+ObjectNode* genIdyll(int numRows = 2, float thinness = 1.0, const mat4& initTrans = MatMath::ID,
 	const mat4& initSkew = MatMath::ID);
 
 #endif

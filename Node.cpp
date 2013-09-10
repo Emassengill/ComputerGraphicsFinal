@@ -2,49 +2,42 @@
 
 //PUBLIC
 
-Node::Node(Node* sub, Node* next) : child(sub), sibling(next), lastChild(sub) { }
-
 Node::~Node() {
-	if (child != nullptr) delete child;
-	if (sibling != nullptr) delete sibling;
+	for (Node** child = _children.get(), ** end = child + _children.size(); child < end; ++child) {
+		delete *child;
+	}
 }
 
-void Node::transform(const mat4& trans, const mat4& skew) {
-	inheritTrans(trans, skew); }
-
-void Node::draw(const mat4& trans, const mat4& skew, bool dynamic, bool shadowMap) {
-	inheritDraw(trans, skew, dynamic, shadowMap);
+void Node::draw(	const RenderGraph& context, const mat4& trans, const mat4& skew,
+					bool dynamic, bool drawMode										)
+{
+	for (Node** child = _children.get(), ** end = child + _children.size(); child < end; ++child) {
+		(*child)->draw(context, trans, skew, dynamic, drawMode);
+	}
+}
+void Node::draw(const RenderGraph& context, const mat4& trans, const mat4& skew, bool dynamic) {
+	draw(context, trans, skew, dynamic, false);
 }
 
-void Node::animate(float number, bool parentCall) {
-	inheritAnim(number, parentCall);
+void Node::animate(float number) {
+	for (Node** child = _children.get(), ** end = child + _children.size(); child < end; ++child) {
+		(*child)->animate(number);
+	}
 }
 
-void Node::addChild(Node* node) {
-	if (lastChild == nullptr) lastChild = child = node;
-	else lastChild = lastChild->addSibling(node);
+LightNode* Node::getLight()
+//Probes the tree to get a pointer to a LightNode. Repeated probing until a nullptr return will retrieve
+//all lights in this subtree.
+{
+	LightNode* temp = nullptr;
+	for (	Node** child = _children.get(), ** end = child + _children.size();
+			temp == nullptr && child < end; ++child							)
+	{
+		temp = (*child)->getLight();
+	}
+	return temp;
 }
 
-//PROTECTED
-
-void Node::inheritTrans(const mat4& trans, const mat4& skew) {
-	child->transform(trans, skew);
-	sibling->transform(trans, skew);
+void Node::addChild(Node& node) {
+	_children.push_back(&node);
 }
-
-void Node:: inheritDraw(const mat4& trans, const mat4& skew,
-	bool dynamic, bool shadowMap) {
-	child->draw(trans, skew, dynamic, shadowMap);
-	sibling->draw(trans, skew, dynamic, shadowMap);
-}
-
-void Node::inheritAnim(float number, bool parentCall) {
-	child->animate(number, parentCall);
-	if (parentCall) sibling->animate(number, parentCall);
-}
-
-Node* Node::getChild() { return child; }
-
-Node* Node::getSibling() { return sibling; }
-
-Node* Node::addSibling(Node* node) { if (sibling == nullptr) sibling = node; return sibling; }

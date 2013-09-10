@@ -1,10 +1,10 @@
 #include "BoolState.h"
-#include "Global.h"
+#include "RenderGraph.h"
 
-BoolState::BoolState(float inside, float sun) : isInside(inside), isSun(sun) { }
+BoolState::BoolState(GLuint inside, GLuint sun) : _isInside(inside), _isSun(sun) { }
 
 //override
-void BoolState::draw(const mat4& trans, const mat4& skew) {
-	glUniform1f(Global::isInside_loc, isInside);
-	glUniform1f(Global::isSun_loc, isSun);
+void BoolState::draw(const RenderGraph& context, const mat4& trans, const mat4& skew) const {
+	glUniform1ui(context.isInside_loc, _isInside);
+	glUniform1ui(context.isSun_loc, _isSun);
 }

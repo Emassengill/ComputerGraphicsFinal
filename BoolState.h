@@ -6,11 +6,11 @@
 
 class BoolState : public Object {
 public:
-	BoolState(float inside = 0.0, float sun = 0.0);
-	virtual void draw(const mat4& trans, const mat4& skew) override;
+	BoolState(GLuint inside = 0, GLuint sun = 0.0);
+	virtual void draw(const RenderGraph& context, const mat4& trans, const mat4& skew) const override;
 private:
-	float isInside;
-	float isSun;
+	const GLuint _isInside;
+	const GLuint _isSun;
 };
 
 #endif

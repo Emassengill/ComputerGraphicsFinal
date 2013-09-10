@@ -20,14 +20,10 @@ bool Global::animating = true;
 const float Global::ZOOMIN = 1.2;
 const float Global::ZOOMOUT = 1.0/ZOOMIN;
 
-const float Global::FOV = 85.0;
-const mat4 Global::projMat( Perspective(FOV, 1.0, 0.01, 40.0) );
 vec4 Global::sunVec(0.0, 1.0, 0.0, 0.0);
 
 //tree
-Node* Global::root;
-Node* Global::carScene;
-Node* Global::sun;
+RenderGraph* Global::root, * Global::sun;
 
 //camera matrices
 mat4 Global::positMat(1.0);
@@ -36,6 +32,7 @@ mat4 Global::rollMat(1.0);
 mat4 Global::yawMat(1.0);
 
 float Global::pitchTheta = 0.0;
+const float Global::FOV = 60.0;
 
 //window width and height
 int Global::ww = 512;
@@ -68,13 +65,14 @@ Object* Global::sunDisk;
 Object* Global::houseCube, * Global::housePyramid, * Global::houseSquare;
 //For Furniture
 Object* Global::furnTube, * Global::furnCube0, * Global::furnCube1;
-//For Special
-Object* Global::light, * Global::sunState, * Global::insideState, * Global::outsideState;
 
 //shader pointers
-GLuint Global::currentProg;
-GLuint Global::camera_loc, Global::proj_loc, Global::trans_loc, Global::skew_loc;
-GLuint Global::spec_loc, Global::sun_loc, Global::isSun_loc, Global::isInside_loc;
+/*GLuint Global::currentProg;
+/*GLuint Global::camera_loc, Global::proj_loc, Global::trans_loc, Global::skew_loc;
+GLuint Global::spec_loc, Global::sun_loc;
+GLuint Global::isSun_loc, Global::isInside_loc, Global::shadowMap_loc;
+GLuint Global::shadowTex;*/
+//GLuint Global::shadowBuffer;
 
 //coordinate system conversion functions
 inline

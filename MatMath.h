@@ -8,9 +8,8 @@ public:
 
 	static const mat4 ID;
 	static const point4 ORIGIN;
-	static const normal4 xNORM;
-	static const normal4 yNORM;
-	static const normal4 zNORM;
+	static const normal4 xNORM, yNORM, zNORM;
+	static const vec3 xAXIS, yAXIS, zAXIS;
 	static const vec3 AXES[3];
 
 	//Functions
@@ -27,6 +26,8 @@ public:
 	//transformation matrix generators
 	static mat4 scale(float factor);
 	static mat4 translate(float x, float y, float z);
+	static mat4 translate(const vec3& direction);
+	static mat4 translate(const vec4& direction);
 	static mat4 distort(float x, float y,float z);
 
 };
