@@ -13,6 +13,7 @@ class EnvironmentNode : public ObjectNode {
 	//lighting operations interfering with its children's. The house is a good example, with both
 	//interior and exterior environments.
 public:
+	static const mat4 scaleBias;
 	EnvironmentNode(BoolState& state = BoolState(), const mat4& trans = MatMath::ID,
 		const mat4& skew = MatMath::ID, mat4 (*animFunc)(float) = nullptr);
 	virtual ~EnvironmentNode() override;

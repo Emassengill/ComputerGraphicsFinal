@@ -25,6 +25,6 @@ mat4 LightNode::genProjection() const {
 	return Frustum(-1.0f, 1.0f, -1.0f, 1.0f, 0.5f, 10.0f); //stub
 }
 
-bool LightNode::isDirectional() const { return ((const Lightsource*)_object)->directional(); }
+bool LightNode::isDirectional() const { return static_cast<const Lightsource*>(_object)->directional(); }
 
 void LightNode::reset() { _retrieved = false; }

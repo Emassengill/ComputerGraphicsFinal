@@ -23,11 +23,12 @@ public:
 	void setCamera(const mat4& cam);
 	Node& root;
 	GLuint program;
-	GLuint camera_loc, proj_loc, shadow_loc;
+	GLuint camera_loc, projection_loc, shadowers_loc;
 	GLuint trans_loc, skew_loc;
-	GLuint spec_loc, shadowSamp_loc;
+	GLuint spec_loc;
 	GLuint isSun_loc, isInside_loc, shadowMap_loc;
-	GLuint shadowBuffer, shadowTexture[MAX_LIGHTS], shadowSampler[MAX_LIGHTS];
+	GLuint shadowBuffer, shadowTextures[MAX_LIGHTS];
+	GLuint numLights_loc, shadowSamp_loc;
 private:
 	mat4 _projection;
 	mat4 _camera;

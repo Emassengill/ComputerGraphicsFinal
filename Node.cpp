@@ -38,6 +38,4 @@ LightNode* Node::getLight()
 	return temp;
 }
 
-void Node::addChild(Node& node) {
-	_children.push_back(&node);
-}
+void Node::addChild(Node& node) { _children.push_back(&node); }
