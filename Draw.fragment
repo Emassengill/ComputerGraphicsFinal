@@ -1,11 +1,11 @@
 #version 330 core
 
-uniform mat4 Camera = mat4(1.0f);
+uniform mat4 camera = mat4(1.0f);
 uniform float specexp = 0.0f;
 
 const uint MAX_LIGHTS = 1u;
 uniform uint numLights = 1u;
-//uniform sampler2DShadow shadowSampler[MAX_LIGHTS];
+uniform sampler2DShadow shadowSampler;
 
 //Vectors for specifying a single directional light source
 //and a single point light source.
@@ -14,59 +14,60 @@ uniform vec3 pointLight = {0.0f, 0.0f, 0.0f};
 
 uniform uint isInside = 0u;
 uniform uint isSun = 0u;
-uniform uint shadowMap = 0u;
 
 in Interface {
-	vec3 global;
-	vec3 viewer;
-	vec4 shadow;
+	vec3 global; //coordinates
+	vec3 viewer; //coordinates
+	vec4 shadow; //coordinates
 	vec3 color;
 	vec3 normal;
 } fragment;
 
-out vec3 outputColor;
+layout(location = 0) out vec3 outputColor;
 
 //Utilizes Blinn-Phong shading.
 void main() {
 
-	if ( ! bool(shadowMap) && ! bool(isSun) ) { //if not rendering the sun, and not shadow mapping
+	if ( ! bool(isSun) ) { //if not rendering the sun
 
 		//The y component of the sunlight vector is used to
 		//adjust ambient lighting to coincide
 		//with night and sunset/sunrise.
 		float tempDirect = pow(abs(directLight.y), 0.4f);
-		float ambient = 0.536f * pow(directLight.y + 1.0f, 0.9f);
-		//float shade = textureProj(shadowSampler[0u], fragment.shadow);
+		float ambient = 0.933f * pow(directLight.y + 1.0f, 0.1f);
+		float shade = textureProj(shadowSampler, fragment.shadow);
 
-		float specular;
-		float modulator;
-		vec3 lightColor;
+		float specular = 0.0f;
+		float modulator = 0.0f;
+		vec3 lightColor = vec3(0.0f, 0.0f, 0.0f);
 
 		if ( ! bool(isInside) ) { //if outside
 
-			float brightness;
-			//if (shade > 0.0001f) {
-				brightness = dot(fragment.normal, directLight);
-				if (brightness <= 0.0f) brightness = 0.0f;
-				else brightness *= 0.25f * pow(directLight.y + 1.0f, 2.0f);
-				//brightness *= shade;
-			//} else {
-			//	brightness = 0.0f;
-			//}
+			if (directLight.y < 0.0f) shade = 1.0f;
+
+			float brightness = 0.0f;
+			if (shade != 0.0f && directLight.y >= 0.0f) {
+				float temp = dot(fragment.normal, directLight);
+				if (temp > 0.0f) {
+					temp *= 0.25f * pow(directLight.y + 1.0f, 2.0f);
+					temp *= shade;
+					brightness += temp;
+				}
+			}
 		
-			ambient = 0.15f + 0.35f * ambient;
+			ambient = 0.15f + 0.45f * ambient;
 			modulator = brightness + ambient;
 			if (modulator > 1.0f) modulator = 1.0f;
 			//The green and blue components are attenuated as the sun reaches the horizon,
 			//making the ambient lighting redder.
 			lightColor = vec3( 1.0f, 0.5f + 0.5f * tempDirect, 0.2f + 0.8f * tempDirect );
 
-			if (directLight.y < 0.0f) { //if sun is on opposite side of polygon, no specular lighting
+			if (directLight.y < 0.0f) { //if sun is below scene, no specular lighting
 				specular = 0.0f;
 			} else if (specexp > 0.0f) { //if specexp is 0.0, then the material is not reflective
 				vec3 halfway = normalize( directLight - normalize(fragment.viewer) );
 				specular = dot(halfway, fragment.normal);
-				if (specular > 0.0f) specular = pow(specular, specexp);
+				if (specular > 0.0f) specular = 32.0f * pow(specular, specexp);
 				else specular = 0.0f;
 			}
 
@@ -78,15 +79,15 @@ void main() {
 			//effect of lighting spilling into the house through the door.
 
 			vec3 lightVec = pointLight - fragment.global;
-			float brightness;
-			//if (shade > 0.0001f) {
-				brightness = 54.0f * dot(fragment.normal, normalize(lightVec));
-				if (brightness <= 0.0f) brightness = 0.0f;
-				else brightness /= 0.01f + pow(length(lightVec), 2.0f);
-				//brightness *= shade;
-			//} else {
-			//	brightness = 0.0f;
-			//}
+			float brightness = 0.0f;
+			if (shade != 0.0f) {
+				float temp = 54.0f * dot(fragment.normal, normalize(lightVec));
+				if (temp > 0.0f) {
+					temp /= 0.01f + pow(length(lightVec), 2.0f);
+					temp *= shade;
+					brightness += temp;
+				}
+			}
 		
 			ambient = 0.2f + 0.3f * ambient;
 			modulator = brightness + ambient;
@@ -96,7 +97,7 @@ void main() {
 			if (specexp > 0.0f) {
 				vec3 halfway = normalize( lightVec - normalize(fragment.viewer) );
 				specular = dot(halfway, fragment.normal);
-				if (specular > 0.0f) specular = pow(specular, specexp);
+				if (specular > 0.0f) specular = shade * pow(specular, specexp);
 				else specular = 0.0f;
 			}
 
@@ -110,7 +111,7 @@ void main() {
 
 		outputColor = modulator * lightColor * ( specular + ( (1.0f - specular) * fragment.color ) );
 
-	} else { //if rendering the sun, or shadow mapping
+	} else { //if rendering the sun
 
 		outputColor = fragment.color;
 

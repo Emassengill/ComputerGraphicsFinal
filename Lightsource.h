@@ -2,6 +2,7 @@
 #define __POINT_LIGHT__
 
 #include "Object.h"
+#include "RenderGraph.h"
 
 class Lightsource : public Object {
 public:
@@ -13,5 +14,16 @@ private:
 	const char* const _target;
 	const bool _directional;
 };
+
+//PUBLIC
+
+inline
+Lightsource::Lightsource(const char* const targ, bool dir) : _target(targ), _directional(dir) { }
+
+inline
+const char* const Lightsource::target() const { return _target; }
+
+inline
+bool Lightsource::directional() const { return _directional; }
 
 #endif

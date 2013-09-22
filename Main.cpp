@@ -14,7 +14,6 @@
 #include "ObjectNode.h"
 
 #include <stdlib.h>
-#include <vector>
 #include <time.h>
 #include <math.h>
 //End Headers
@@ -104,7 +103,7 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	Global::carSphere = new Primitive(vao[3], sphere.numIndices, occ[3], 12.0);
+	Global::carSphere = new Primitive(vao[3], sphere.numIndices, occ[3], 20.0);
 
 	const CubeGen cube = CubeGen(paint);
 	glBindVertexArray(vao[4]);
@@ -121,7 +120,7 @@ void meshSetup(const color4& paint = Global::red_opaque, const float thinness = 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	Global::carCube = new Primitive(vao[4], cube.numIndices, occ[4], 12.0);
+	Global::carCube = new Primitive(vao[4], cube.numIndices, occ[4], 20.0);
 
 	//Road
 	const RingGen ring = RingGen(thinness * 0.5, 30, Global::black_opaque);
@@ -358,7 +357,7 @@ void timer(int t)
 //animates the scene
 {
 	if (Global::animating) {
-		Global::sunVec = MatMath::rZ(M_PI/2000.0) * Global::sunVec;
+		Global::sunVec = rZ(M_PI/2000.0) * Global::sunVec;
 		if (Global::sun != nullptr) Global::sun->animate(M_PI/250.0);
 		//By keeping a pointer to the car scene, I can call animate() on it without incurring the overhead
 		//of calling the function recursively on the rest of the object tree, Global::when only the car is animated.
@@ -368,87 +367,74 @@ void timer(int t)
 	glutTimerFunc(20, timer, 0);
 }
 
-void cleanup( ) {
-	if (Global::root != nullptr) delete Global::root;
-	if (Global::sun != nullptr) delete Global::sun;
-
-	//Global Objects
-	//For Chassis
-	delete Global::carSphere; delete Global::carCube;
-	//For Wheel
-	delete Global::wheelTube; delete Global::wheelCylinder;
-	//For Road
-	delete Global::roadRing;
-	//For Ground
-	delete Global::groundSquare;
-	//For Leaf
-	delete Global::leaf[0]; delete Global::leaf[1];
-	//For Tree
-	delete Global::treeCone; delete Global::treeCylinder;
-	//For Sun
-	delete Global::sunDisk;
-	//For House
-	delete Global::houseCube; delete Global::housePyramid; delete Global::houseSquare;
-	//For Furniture
-	delete Global::furnTube; delete Global::furnCube0; delete Global::furnCube1;
-}
-
 void keyboard(unsigned char key, int x, int y) {
+	switch (key) {
+
 	//exit on Esc key
-    if (key == 033) {
+	case 033:
 		exit( EXIT_SUCCESS );
-	}
+		return;
 
 	//restor to beginning on R
-	else if (key == 'r' || key == 'R') {
-		Global::positMat = MatMath::ID;
-		Global::pitchMat = MatMath::ID;
-		Global::rollMat = MatMath::ID;
-		Global::yawMat = MatMath::ID;
+	case 'r': case 'R':
+		Global::positMat = Global::initPosit;
+		Global::pitchMat = Global::rollMat = Global::yawMat = MatMath::ID;
 		Global::animating = true;
 		glutPostRedisplay();
-	}
+		return;
 
 	//roll right on E
-	else if (key == 'e' || key == 'E') {
-		Global::rollMat = MatMath::rZ(M_PI/12.0) * Global::rollMat;
+	case 'e': case 'E':
+		Global::rollMat = rZ(M_PI/12.0) * Global::rollMat;
 		glutPostRedisplay();
-	}
+		return;
+
 	//roll left on Q
-	else if (key == 'q' || key == 'Q') {
-		Global::rollMat = MatMath::rZ(-M_PI/12.0) * Global::rollMat;
+	case 'q': case 'Q':
+		Global::rollMat = rZ(-M_PI/12.0) * Global::rollMat;
 		glutPostRedisplay();
-	}
+		return;
 
 	//move forward on W
-	else if (key == 'w' || key == 'W') { Global::positMat[2][3] += Global::SPEED; glutPostRedisplay(); }
+	case 'w': case 'W': Global::positMat[2][3] += Global::SPEED; glutPostRedisplay(); return;
+
 	//move backward on S
-	else if (key == 's' || key == 'S') { Global::positMat[2][3] -= Global::SPEED; glutPostRedisplay(); }
+	case 's': case 'S': Global::positMat[2][3] -= Global::SPEED; glutPostRedisplay(); return;
+
 	//move left on A
-	else if (key == 'a' || key == 'A') { Global::positMat[0][3] += Global::SPEED; glutPostRedisplay(); }
+	case 'a': case 'A': Global::positMat[0][3] += Global::SPEED; glutPostRedisplay(); return;
+
 	//move right on D
-	else if (key == 'd' || key == 'D') { Global::positMat[0][3] -= Global::SPEED; glutPostRedisplay(); }
+	case 'd': case 'D': Global::positMat[0][3] -= Global::SPEED; glutPostRedisplay(); return;
 
 	//crouch on C
-	else if (key == 'c' || key == 'C') {
-		if (Global::crouching) { Global::positMat[1][3] = 0.0; Global::crouching = false; }
-		else { Global::positMat[1][3] = 2.0; Global::crouching = true; }
+	case 'c': case 'C':
+		if (Global::crouching) {
+			Global::positMat[1][3] -= Global::CROUCH_DIST;
+			Global::crouching = false;
+		} else {
+			Global::positMat[1][3] += Global::CROUCH_DIST;
+			Global::crouching = true;
+		}
 		glutPostRedisplay();
-	}
+		return;
 
-	//MatMath::scale Global::positMat on I (zoom in)
-	else if (key == 'i' || key == 'I') {
-		Global::positMat = MatMath::scale(Global::ZOOMIN) * Global::positMat;
+	//scale Global::positMat on I (zoom in)
+	case 'i': case 'I':
+		Global::positMat = scale(Global::ZOOMIN) * Global::positMat;
 		glutPostRedisplay();
-	}
-	//MatMath::scale down Global::positMat on O (zoom out)
-	else if (key == 'o' || key == 'O') {
-		Global::positMat = MatMath::scale(Global::ZOOMOUT) * Global::positMat;
+		return;
+
+	//scale down Global::positMat on O (zoom out)
+	case 'o': case 'O':
+		Global::positMat = scale(Global::ZOOMOUT) * Global::positMat;
 		glutPostRedisplay();
-	}
+		return;
 
 	//Pause and play animation on T
-	else if (key == 't' || key == 'T') Global::animating = !Global::animating;
+	case 't': case 'T': Global::animating = !Global::animating;
+
+	}
 }
 
 void mouse(int button, int state, int p, int q) {
@@ -471,12 +457,14 @@ void mouseMotion(int p, int q)
 	if (Global::leftMouse) {
 		float delta_p = 3.0 * Global::FOV * (M_PI/180.0) * (p - Global::pRef) / Global::viewDim;
 		float delta_q = 2.5 * Global::FOV * (M_PI/180.0) * (q - Global::qRef) / Global::viewDim;
-		mat4 delta_yaw = MatMath::rY(delta_p);
-		Global::pitchTheta = (Global::pitchTheta + delta_q > -M_PI/2.0 && Global::pitchTheta + delta_q < M_PI/2.0) ?
-			Global::pitchTheta + delta_q : Global::pitchTheta;
+		mat4 delta_yaw = rY(delta_p);
+		Global::pitchTheta =
+			(Global::pitchTheta + delta_q > -M_PI/2.0 && Global::pitchTheta + delta_q < M_PI/2.0) ?
+				Global::pitchTheta + delta_q
+			:	Global::pitchTheta;
 		Global::yawMat = delta_yaw * Global::yawMat;
 		Global::positMat = delta_yaw * Global::positMat;
-		Global::pitchMat = MatMath::rX(Global::pitchTheta);
+		Global::pitchMat = rX(Global::pitchTheta);
 		Global::pRef = p, Global::qRef = q;
 		glutPostRedisplay();
 	}
@@ -502,25 +490,28 @@ void help() {
 
 void init() {
 	// Load shaders and use the resulting shader program
-    GLuint currentProg = InitShader("VertexShader.glsl", "FragShader.glsl");
-    glUseProgram(currentProg);
+    GLuint drawProg = InitShader("Draw.vertex", "Draw.fragment");
+	GLuint shadowProg = InitShader("ShadowMap.vertex", "ShadowMap.fragment");
+    glUseProgram(drawProg);
 
 	meshSetup(Global::red_opaque, 1.2);
 
-	mat4 projection = Perspective(Global::FOV, 1.0f, 0.01f, 40.0f);
+	const mat4 projection = Perspective(Global::FOV, 1.0f, 0.01f, 20.0f) * 
+		translate(0.0f, 0.0f, 0.75f) * scale(10.0f);
+
 	Global::root = new RenderGraph(
-		currentProg,
-		*genIdyll(5, 1.2, MatMath::translate(20.0, -6.5, -50.0) * MatMath::scale(100.0)),
+		drawProg,
+		shadowProg,
+		*genIdyll(5, 1.2f),
 		projection
 	);
 	Global::sun = new RenderGraph(
-		currentProg,
-		*genSun( MatMath::translate(2000.0 * Global::sunVec) * MatMath::scale(65.0) * MatMath::rX(M_PI/2.0) ),
+		drawProg,
+		shadowProg,
+		*genSun( translate(20.0 * Global::sunVec) * scale(0.5f) *
+			rX(M_PI/2.0) ),
 		projection
 	);
-
-	glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
 
 	help();
 }
@@ -536,15 +527,14 @@ void display() {
 	
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-	mat4 temp = Global::pitchMat * Global::rollMat;
+	const mat4 temp = Global::rollMat * Global::pitchMat;
+	if (Global::root != nullptr) {
+		Global::root->setCamera(temp * Global::positMat);
+		Global::root->draw();
+	}
 	if (Global::sun != nullptr) {
 		Global::sun->setCamera(temp * Global::yawMat);
 		Global::sun->draw();
-	}
-	if (Global::root != nullptr) {
-		//glUniform4fv(Global::root->sun_loc, 1, Global::sunVec);
-		Global::root->setCamera(temp * Global::positMat);
-		Global::root->draw();
 	}
 	
 	glutSwapBuffers();
@@ -567,7 +557,6 @@ int main( int argc, char **argv ) {
     glutCreateWindow("Eric Massengill GitHub Graphics Project");
 	m_glewInitAndVersion();
 
-	atexit(cleanup);
     init();
 
     glutDisplayFunc(display);

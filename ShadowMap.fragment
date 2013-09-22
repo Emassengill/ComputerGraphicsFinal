@@ -1,0 +1,7 @@
+#version 330 core
+
+layout(location = 0) out float outputDepth;
+
+void main() {
+	outputDepth = gl_FragCoord.z;
+}

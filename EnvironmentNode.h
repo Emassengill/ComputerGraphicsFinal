@@ -5,6 +5,10 @@
 #include "LightNode.h"
 #include "Container.h"
 #include "BoolState.h"
+#include "RenderGraph.h"
+
+#include <assert.h>
+
 
 class EnvironmentNode : public ObjectNode {
 	//EnvironmentNodes specify self-contained lighting environments. They serve as gatekeepers to their
@@ -18,13 +22,20 @@ public:
 		const mat4& skew = MatMath::ID, mat4 (*animFunc)(float) = nullptr);
 	virtual ~EnvironmentNode() override;
 	virtual void addChild(Node& node) override;
-	virtual LightNode* getLight() override;
-	virtual void draw(const RenderGraph& context, const mat4& trans, const mat4& skew, bool dynamic,
+	virtual GraphInfo getInfo() const override;
+	virtual void draw(RenderGraph& context, const mat4& trans, const mat4& skew, bool dynamic,
 		bool drawMode) override;
 private:
-	void addLight(LightNode& light);
-	Container<LightNode*> searchLights(Node& node);
 	Container<LightNode*> _lights;
+	bool _hasEnvironmentChild;
 };
+
+//PUBLIC
+
+inline
+EnvironmentNode::EnvironmentNode(BoolState& state, const mat4& trans, const mat4& skew,
+	mat4 (*animFunc)(float))
+	: ObjectNode(new BoolState(state), trans, skew, animFunc), _hasEnvironmentChild(false)
+{ }
 
 #endif

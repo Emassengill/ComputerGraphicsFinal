@@ -1,30 +1,14 @@
 #include "LightNode.h"
-#include "Lightsource.h"
-
-//PUBLIC
-
-LightNode::LightNode(Lightsource& light, const mat4& trans, mat4 (*anim)(float))
-	: ObjectNode(new Lightsource(light), trans, MatMath::ID, anim), _retrieved(false)
-{ }
-
-LightNode::~LightNode() { delete _object; }
 
 //override
-LightNode* LightNode::getLight() {
-	if (_retrieved) {
-		return Node::getLight();
-	} else {
-		_retrieved = true;
-		return this;
-	}
+void LightNode::draw(RenderGraph& context, const mat4& trans, const mat4& skew,
+	bool dynamic, bool drawing)
+{
+	ObjectNode::draw(context, trans, skew, dynamic, drawing);
+	if (!cached()) _lastTrans = trans;
 }
 
-mat4 LightNode::genProjection() const {
-	//if (directional) return Frustum(-1.0f, 1.0f, -1.0f, 1.0f, 0.5f, 10.0f);
-	//else return Perspective(
-	return Frustum(-1.0f, 1.0f, -1.0f, 1.0f, 0.5f, 10.0f); //stub
+//override
+GraphInfo LightNode::getInfo() const {
+	return GraphInfo(const_cast<LightNode*>(this)).mergeWith(Node::getInfo());
 }
-
-bool LightNode::isDirectional() const { return static_cast<const Lightsource*>(_object)->directional(); }
-
-void LightNode::reset() { _retrieved = false; }

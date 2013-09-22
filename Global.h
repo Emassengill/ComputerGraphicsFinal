@@ -22,6 +22,7 @@ public:
 	static const color4 darkbrown_opaque;
 
 	static const float SPEED;
+	static const float CROUCH_DIST;
 	static bool crouching;
 	static bool animating;
 
@@ -34,6 +35,7 @@ public:
 	static RenderGraph* root, * sun;
 
 	//camera matrices
+	static const mat4 initPosit;
 	static mat4 positMat;
 	static mat4 pitchMat;
 	static mat4 rollMat;
@@ -49,7 +51,7 @@ public:
 	static int viewx;
 	static int viewy;
 	static int viewDim;
-	static const int SHADOW_BUFFER_DIM = 1024;
+	static const int SHADOW_BUFFER_DIM = GL_MAX_VIEWPORT_DIMS;
 
 	//mouse callback values
 	static bool leftMouse;
@@ -75,21 +77,64 @@ public:
 	//For Furniture
 	static Object* furnTube, * furnCube0, * furnCube1;
 
-	//shader pointers
-	/*static GLuint currentProg;
-	/*static GLuint camera_loc, proj_loc, trans_loc, skew_loc;
-	static GLuint spec_loc, sun_loc, isSun_loc, isInside_loc, shadowMap_loc;
-	static GLuint shadowTex;*/
-	//static GLuint shadowBuffer;
+	static void cleanup();
 
-	//Functions
-	//coordinate system conversion functions
-	static int coord2screen(float x);
-	static float screen2coord(int x);
-	static int round(float x);
-	static float randNum(float start, float end);
-	static float bernoulli();
+private:
+	Global() { }
+	Global(const Global& that) { }
+	void operator = (const Global& that) { }
 
 };
+
+//Functions
+//coordinate system conversion functions
+inline
+int coord2screen(float x) {
+	return (int) ((x + 1.0)/2.0) * Global::viewDim;
+}
+
+inline
+float screen2coord(int x) {
+	return  2.0 * x / Global::viewDim - 1.0;
+}
+
+inline
+int round(float x) { return (int)floor(x + 0.5); }
+
+inline
+float randNum(float start, float end) {
+	return (end - start) * rand() / RAND_MAX + start;
+}
+
+inline
+float bernoulli() { return (float) rand() / (RAND_MAX + 1); }
+
+//PUBLIC: Global
+
+inline
+void Global::cleanup() {
+	if (root != nullptr) delete root;
+	if (sun != nullptr) delete sun;
+
+	//Global Objects
+	//For Chassis
+	delete carSphere; delete carCube;
+	//For Wheel
+	delete wheelTube; delete wheelCylinder;
+	//For Road
+	delete roadRing;
+	//For Ground
+	delete groundSquare;
+	//For Leaf
+	delete leaf[0]; delete leaf[1];
+	//For Tree
+	delete treeCone; delete treeCylinder;
+	//For Sun
+	delete sunDisk;
+	//For House
+	delete houseCube; delete housePyramid; delete houseSquare;
+	//For Furniture
+	delete furnTube; delete furnCube0; delete furnCube1;
+}
 
 #endif

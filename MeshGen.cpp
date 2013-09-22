@@ -765,9 +765,9 @@ void ConeGen::generate(int numEdgePoints, const color4& baseColor, const color4&
 	int temp = numEdgePoints + 5;
 	mat4 tempRotate;
 	const normal4 tempNorm1 = normal4(0.4472, 0.0, -0.1056, 0.0);
-	const normal4 tempNorm2 = MatMath::rZ(theta/2.0) * tempNorm1;
+	const normal4 tempNorm2 = rZ(theta/2.0) * tempNorm1;
 	for (int i = 0; i < numEdgePoints; ++i) {
-		tempRotate = MatMath::rZ(i * theta);
+		tempRotate = rZ(i * theta);
 		elements[i + temp] = tempRotate * tempNorm1;
 		elements[i + numEdgePoints + temp] = tempRotate * tempNorm2;
 	}
