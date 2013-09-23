@@ -39,15 +39,18 @@ mat4 LightNode::genCamera(const mat4& viewer) const {
 		if (cached()) direction = _lastTrans * direction;
 		return LookAt(MatMath::ORIGIN, -direction, MatMath::yAXIS);
 	} else {
-		vec4 camTrans = genTranslation4(viewer);
-		return LookAt(genTranslation(), -camTrans, MatMath::yAXIS);
+		return LookAt(genTranslation(), MatMath::ORIGIN, MatMath::yAXIS);
 	}
 }
 
 inline
 mat4 LightNode::genProjection() const {
-	float distance = 21.0f;
-	return Ortho(-distance, distance, -distance, distance, -distance, distance); //stub
+	if (isDirectional()) {
+		float distance = 21.0f;
+		return Ortho(-distance, distance, -distance, distance, -distance, distance);
+	} else {
+		return Perspective(45.0f, 1.0f, 0.0078125f, 8.0f) * translate(0.0f, 0.0f, 0.5f);
+	}
 }
 
 inline

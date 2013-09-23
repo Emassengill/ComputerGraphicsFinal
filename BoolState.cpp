@@ -1,4 +1,7 @@
 #include "BoolState.h"
+#include "RenderGraph.h"
+
+//PUBLIC
 
 //override
 void BoolState::draw(const RenderGraph& context, const mat4& trans, const mat4& skew) const {

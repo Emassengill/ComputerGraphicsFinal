@@ -5,13 +5,14 @@
 #include "MatMath.h"
 
 class ObjectNode;
+class EnvironmentNode;
 
 //Model Animations
 mat4 rotateWheel(float theta);
 mat4 driveCar(float theta);
 
 //Model Generators
-ObjectNode* genSun(const mat4& initTrans);
+EnvironmentNode* genSun(const mat4& initTrans);
 ObjectNode* genGround(float height = 0.0, float size = 1.0,
 	const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
 ObjectNode* genWheel(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
@@ -38,9 +39,9 @@ ObjectNode* genFirePlace(const mat4& initTrans = MatMath::ID, const mat4& initSk
 ObjectNode* genBed(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
 ObjectNode* genChair(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
 ObjectNode* genHouseOut(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
-ObjectNode* genHouseIn(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
+EnvironmentNode* genHouseIn(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
 ObjectNode* genHouse(const mat4& initTrans = MatMath::ID, const mat4& initSkew = MatMath::ID);
-ObjectNode* genIdyll(int numRows = 2, float thinness = 1.0, const mat4& initTrans = MatMath::ID,
+EnvironmentNode* genIdyll(int numRows = 2, float thinness = 1.0, const mat4& initTrans = MatMath::ID,
 	const mat4& initSkew = MatMath::ID);
 
 #endif

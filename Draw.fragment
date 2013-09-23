@@ -33,8 +33,8 @@ void main() {
 		//The y component of the sunlight vector is used to
 		//adjust ambient lighting to coincide
 		//with night and sunset/sunrise.
-		float tempDirect = pow(abs(directLight.y), 0.4f);
-		float ambient = 0.933f * pow(directLight.y + 1.0f, 0.1f);
+		float tempDirect = pow(abs(directLight.y), 0.35f);
+		float ambient = (directLight.y > 0.0f) ? 1.0f : 0.933f * pow(directLight.y + 1.0f, 0.1f);
 		float shade = textureProj(shadowSampler, fragment.shadow);
 
 		float specular = 0.0f;
@@ -55,7 +55,7 @@ void main() {
 				}
 			}
 		
-			ambient = 0.15f + 0.45f * ambient;
+			ambient = 0.125f + 0.5f * ambient;
 			modulator = brightness + ambient;
 			if (modulator > 1.0f) modulator = 1.0f;
 			//The green and blue components are attenuated as the sun reaches the horizon,
@@ -81,9 +81,9 @@ void main() {
 			vec3 lightVec = pointLight - fragment.global;
 			float brightness = 0.0f;
 			if (shade != 0.0f) {
-				float temp = 54.0f * dot(fragment.normal, normalize(lightVec));
+				float temp = dot(fragment.normal, normalize(lightVec));
 				if (temp > 0.0f) {
-					temp /= 0.01f + pow(length(lightVec), 2.0f);
+					temp /= 0.25f + 64.0f * pow(length(lightVec), 2.0f);
 					temp *= shade;
 					brightness += temp;
 				}

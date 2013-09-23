@@ -1,9 +1,13 @@
 #include "EnvironmentNode.h"
+#include "LightNode.h"
+#include "RenderGraph.h"
+
+//PUBLIC
 
 const mat4 EnvironmentNode::scaleBias(	0.5f, 0.0f, 0.0f, 0.0f,
 										0.0f, 0.5f, 0.0f, 0.0f,
 										0.0f, 0.0f, 0.5f, 0.0f,
-										0.5f, 0.5f, 0.5f, 1.0f		);
+										0.5f, 0.5f, 0.5f, 1.0f	);
 
 //override
 EnvironmentNode::~EnvironmentNode() { delete _object; }

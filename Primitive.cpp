@@ -1,5 +1,7 @@
 #include "Primitive.h"
 
+//PUBLIC
+
 //override
 Primitive::~Primitive() {
 	glDeleteVertexArrays(1, &_vao);

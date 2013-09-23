@@ -496,7 +496,7 @@ void init() {
 
 	meshSetup(Global::red_opaque, 1.2);
 
-	const mat4 projection = Perspective(Global::FOV, 1.0f, 0.01f, 20.0f) * 
+	const mat4 projection = Perspective(Global::FOV, 1.0f, 0.0078125f, 16.0f) * 
 		translate(0.0f, 0.0f, 0.75f) * scale(10.0f);
 
 	Global::root = new RenderGraph(
@@ -508,7 +508,7 @@ void init() {
 	Global::sun = new RenderGraph(
 		drawProg,
 		shadowProg,
-		*genSun( translate(20.0 * Global::sunVec) * scale(0.5f) *
+		*genSun( translate(16.0 * Global::sunVec) * scale(0.4f) *
 			rX(M_PI/2.0) ),
 		projection
 	);
@@ -518,8 +518,8 @@ void init() {
 
 void display() {
 	const float sunY = Global::sunVec.y;
-	const float tempDirect = pow(abs(sunY), 0.23);
-	const float tempBright = (sunY > 0.0) ? 1.0 : 1.0 - pow(abs(sunY), 0.45);
+	const float tempDirect = pow(abs(sunY), 0.125);
+	const float tempBright = (sunY > 0.0) ? 1.0 : 1.0 - pow(abs(sunY), 0.125f);
 	glClearColor(	tempBright * 0.6,
 					tempBright * (0.25 + 0.35 * tempDirect),
 					tempBright * (0.2 + 0.8 * tempDirect),

@@ -3,7 +3,8 @@
 
 #include "Definitions.h"
 #include "Node.h"
-#include "Object.h"
+
+class Object;
 
 class ObjectNode : public Node {
 public:
@@ -27,6 +28,8 @@ private:
 	mat4 (*_animation)(float);
 	bool _cached;
 };
+
+#include "Object.h"
 
 //PUBLIC
 

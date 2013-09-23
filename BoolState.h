@@ -3,7 +3,8 @@
 
 #include "Definitions.h"
 #include "Object.h"
-#include "RenderGraph.h"
+
+class RenderGraph;
 
 class BoolState : public Object {
 public:
@@ -13,6 +14,8 @@ private:
 	const GLuint _isInside;
 	const GLuint _isSun;
 };
+
+//PUBLIC
 
 inline
 BoolState::BoolState(GLuint inside, GLuint sun) : _isInside(inside), _isSun(sun) { }

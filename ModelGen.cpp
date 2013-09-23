@@ -5,29 +5,25 @@
 #include "BoolState.h"
 
 //Model Animations
-inline
 mat4 rotateSun(float theta) {
 	return rZ(theta/8.0f);
 }
 
-inline
 mat4 rotateWheel(float theta) {
 	return rZ(25 * theta);
 }
 
-inline
 mat4 driveCar(float theta) {
 	return rY(theta);
 }
 
 //Model Generators
-ObjectNode* genSun(const mat4& initTrans) {
-	ObjectNode* temp = new EnvironmentNode(BoolState(0u, 1u), initTrans, MatMath::ID, rotateSun);
+EnvironmentNode* genSun(const mat4& initTrans) {
+	EnvironmentNode* temp = new EnvironmentNode(BoolState(0u, 1u), initTrans, MatMath::ID, rotateSun);
 	temp->addChild(*new ObjectNode(Global::sunDisk));
 	return temp;
 }
 
-inline
 ObjectNode* genGround(float height, float size, const mat4& initTrans, const mat4& initSkew) {
 	mat4 tempTrans = translate(0.0, -height, 0.0);
 	mat4 tempRotate = rX(-M_PI/2.0);
@@ -35,7 +31,6 @@ ObjectNode* genGround(float height, float size, const mat4& initTrans, const mat
 							tempRotate, initSkew * tempRotate	);
 }
 
-inline
 ObjectNode* genWheel(const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* wheel = new ObjectNode(nullptr, initTrans, initSkew);
 
@@ -58,7 +53,6 @@ ObjectNode* genWheel(const mat4& initTrans, const mat4& initSkew) {
 	return wheel;
 }
 
-inline
 ObjectNode* genChassis(const mat4& initTrans, const mat4& initSkew, const color4& paint) {
 	ObjectNode* chassis = new ObjectNode(nullptr, initTrans, initSkew);
 	
@@ -79,7 +73,6 @@ ObjectNode* genChassis(const mat4& initTrans, const mat4& initSkew, const color4
 	return chassis;
 }
 
-inline
 ObjectNode* genCar(const mat4& initTrans, const mat4& initSkew, const color4& paint) {
 	ObjectNode* car = new ObjectNode(nullptr, initTrans, initSkew);
 	car->addChild(*genChassis(MatMath::ID, MatMath::ID, paint));
@@ -97,32 +90,28 @@ ObjectNode* genCar(const mat4& initTrans, const mat4& initSkew, const color4& pa
 	return car;
 }
 
-inline
 ObjectNode* genRoad(const mat4& initTrans, const mat4& initSkew, float thinness) {
 	mat4 tempRotate = rX(-M_PI/2.0);
 	return new ObjectNode(Global::roadRing, initTrans * tempRotate, initSkew * tempRotate);
 }
 
-inline
 ObjectNode* genDrivingScene(float thinness, const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* road = new ObjectNode(nullptr, initTrans, initSkew);
 	road->addChild(*genRoad(MatMath::ID, MatMath::ID, thinness));
 	const float width = 1.0 - 0.5 * thinness;
 	mat4 tempTrans = translate(0.0, 0.1 * width, -0.5 * (thinness + width) + 0.1 * width);
 	ObjectNode* temp = new ObjectNode(nullptr, MatMath::ID, MatMath::ID, driveCar);
-	temp->addChild(*genCar(tempTrans * scale(0.15 * width)));///
-	road->addChild(*temp);///
+	temp->addChild(*genCar(tempTrans * scale(0.15 * width)));
+	road->addChild(*temp);
 	return road;
 }
 
-inline
 ObjectNode* genLeaf(float prob, const mat4& initTrans, const mat4& initSkew) {
 	const int colorInd = bernoulli() < prob ? 1 : 0;
 	return new ObjectNode(	Global::leaf[colorInd], initTrans * rZ(M_PI/12.0),
 							initSkew * rZ(M_PI/12.0)							);
 }
 
-inline
 ObjectNode* genLeafBunch(float rho, float radius, float prob, int numLeaves,
 	const mat4& initTrans, const mat4& initSkew)
 {
@@ -148,7 +137,6 @@ ObjectNode* genLeafBunch(float rho, float radius, float prob, int numLeaves,
 	return bunch;
 }
 
-inline
 ObjectNode* genBranch(int branching, int maxDepth, int density, float scaleFactor, float seasonProb,
 	const mat4& initTrans, const mat4& initSkew, int currentDepth)
 {
@@ -179,7 +167,6 @@ ObjectNode* genBranch(int branching, int maxDepth, int density, float scaleFacto
 	return branch;
 }
 
-inline
 ObjectNode* genTree(int branching, int maxDepth, int density, float scaleFactor, float seasonProb, float height,
 	const mat4& initTrans, const mat4& initSkew)
 {
@@ -213,7 +200,6 @@ ObjectNode* genTree(int branching, int maxDepth, int density, float scaleFactor,
 	return tree;
 }
 
-inline
 ObjectNode* genForest(int numTrees, float minR, float maxR, const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* forest = new ObjectNode(nullptr, initTrans, initSkew);
 
@@ -227,12 +213,10 @@ ObjectNode* genForest(int numTrees, float minR, float maxR, const mat4& initTran
 	return forest;
 }
 
-inline
 ObjectNode* genFirePlace(const mat4& initTrans, const mat4& initSkew) {
 	return new ObjectNode(Global::furnTube, initTrans * rZ(M_PI/4.0), initSkew * rZ(M_PI/4.0));
 }
 
-inline
 ObjectNode* genBed(const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* bed = new ObjectNode(nullptr, initTrans, initSkew);
 
@@ -251,7 +235,6 @@ ObjectNode* genBed(const mat4& initTrans, const mat4& initSkew) {
 	return bed;
 }
 
-inline
 ObjectNode* genChair(const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* chair = new ObjectNode(nullptr, initTrans, initSkew);
 
@@ -274,7 +257,6 @@ ObjectNode* genChair(const mat4& initTrans, const mat4& initSkew) {
 	return chair;
 }
 
-inline
 ObjectNode* genHouseOut(const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* house = new ObjectNode(nullptr, initTrans, initSkew);
 
@@ -303,9 +285,8 @@ ObjectNode* genHouseOut(const mat4& initTrans, const mat4& initSkew) {
 	return house;
 }
 
-inline
-ObjectNode* genHouseIn(const mat4& initTrans, const mat4& initSkew) {
-	ObjectNode* house = new EnvironmentNode(BoolState(1u, 0u), initTrans, initSkew);
+EnvironmentNode* genHouseIn(const mat4& initTrans, const mat4& initSkew) {
+	EnvironmentNode* house = new EnvironmentNode(BoolState(1u, 0u), initTrans, initSkew);
 	house->addChild(
 		*new LightNode(Lightsource("pointLight", false), translate(0.0, -0.35, -0.87))		);
 
@@ -350,7 +331,6 @@ ObjectNode* genHouseIn(const mat4& initTrans, const mat4& initSkew) {
 	return house;
 }
 
-inline
 ObjectNode* genHouse(const mat4& initTrans, const mat4& initSkew) {
 	ObjectNode* house = new ObjectNode(nullptr, initTrans, initSkew);
 	house->addChild(*genHouseOut());
@@ -358,8 +338,8 @@ ObjectNode* genHouse(const mat4& initTrans, const mat4& initSkew) {
 	return house;
 }
 
-ObjectNode* genIdyll(int numRows, float thinness, const mat4& initTrans, const mat4& initSkew) {
-	ObjectNode* scene = new EnvironmentNode(BoolState(0u, 0u), initTrans, initSkew);
+EnvironmentNode* genIdyll(int numRows, float thinness, const mat4& initTrans, const mat4& initSkew) {
+	EnvironmentNode* scene = new EnvironmentNode(BoolState(0u, 0u), initTrans, initSkew);
 
 	scene->addChild( *new LightNode(Lightsource("directLight", true), MatMath::ID, rotateSun) );
 	scene->addChild( *genDrivingScene(thinness) );
